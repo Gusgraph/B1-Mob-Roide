@@ -1,0 +1,46 @@
+export const endpoints = {
+  appConfig: '/app-config',
+  plans: '/plans',
+  auth: {
+    login: '/auth/login',
+    logout: '/auth/logout',
+    refresh: '/auth/refresh',
+    me: '/me',
+  },
+  dashboard: '/dashboard',
+  products: '/products',
+  productOverview: (product: string | number) => `/products/${product}/overview`,
+  accounts: '/accounts',
+  accountSnapshot: (account: string | number) => `/accounts/${account}/snapshot`,
+  brokers: '/brokers',
+  brokerAccounts: '/brokers/accounts',
+  connectAlpaca: '/brokers/alpaca/connect',
+  disconnectBroker: (brokerAccount: string | number) => `/brokers/${brokerAccount}/disconnect`,
+  brokerStatus: (brokerAccount: string | number) => `/brokers/${brokerAccount}/status`,
+  automation: (product: string | number, accountSlot: string | number) =>
+    `/automation/${product}/${accountSlot}`,
+  automationSymbols: (product: string | number, accountSlot: string | number) =>
+    `/automation/${product}/${accountSlot}/symbols`,
+  automationSymbol: (product: string | number, accountSlot: string | number, symbol: string) =>
+    `/automation/${product}/${accountSlot}/symbols/${encodeURIComponent(symbol)}`,
+  automationToggle: (product: string | number, accountSlot: string | number) =>
+    `/automation/${product}/${accountSlot}/toggle`,
+  positions: '/positions',
+  position: (symbol: string) => `/positions/${encodeURIComponent(symbol)}`,
+  manualClosePosition: (symbol: string) => `/positions/${encodeURIComponent(symbol)}/manual-close`,
+  orders: '/orders',
+  order: (order: string | number) => `/orders/${order}`,
+  tradeActivity: '/activity/trades',
+  systemActivity: '/activity/system',
+  performanceSummary: '/performance/summary',
+  performanceCurve: '/performance/curve',
+  billingSummary: '/billing/summary',
+  billingPortal: '/billing/portal',
+  supportTickets: '/support/tickets',
+  supportTicket: (ticket: string | number) => `/support/tickets/${ticket}`,
+  supportTicketReply: (ticket: string | number) => `/support/tickets/${ticket}/reply`,
+  affiliateSummary: '/affiliate/summary',
+  affiliateReferrals: '/affiliate/referrals',
+  affiliatePayouts: '/affiliate/payouts',
+} as const;
+
