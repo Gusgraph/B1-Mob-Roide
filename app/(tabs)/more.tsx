@@ -1,3 +1,13 @@
+// أَعُوذُ بِٱللَّهِ مِنْ الْشَيْطَانٍ الْرَجِيمٍ ✧ بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ✧ اعوز بالله من الشياطين و ان يحضرون ✧ بسم الله الرحمن الرحيم ✧ الله لا إله إلا هو الحي القيوم 
+// Bismillahi ar-Rahmani ar-Rahim Audhu billahi min ash-shayatin wa an yahdurun Bismillah ar-Rahman ar-Rahim Allah la ilaha illa huwa al-hayy al-qayyum. Tamsa Allahu ala ayunihim
+// version: 1.0.0
+// ======================================================
+// - Bismel1Mobile
+// - Gusgraph
+// - Author: Gus Kazem
+// - https://Gusgraph.com
+// - File Path: more.tsx - app/(tabs)/more.tsx
+// =====================================================
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BadgeDollarSign, Bot, Building2, ChartNoAxesCombined, ChevronRight, Headset, LogOut, Package, ReceiptText, Settings, UserRound } from 'lucide-react-native';
