@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { Network } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -9,7 +10,8 @@ import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { asRecord, firstString } from '@/utils/records';
 
@@ -18,6 +20,8 @@ export default function AffiliateScreen() {
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   const approved = Boolean(user?.affiliate_approved || user?.affiliateApproved);
 
@@ -49,6 +53,7 @@ export default function AffiliateScreen() {
       {error ? <ErrorState message={error} /> : null}
       {summary ? (
         <Bismel1Card>
+          <Network color={colors.accent} size={19} />
           <Text style={styles.title}>{firstString(summary, ['status', 'tier'], 'Affiliate')}</Text>
           <Text style={styles.text}>{firstString(summary, ['referrals_count', 'referrals', 'message'])}</Text>
         </Bismel1Card>
@@ -57,7 +62,7 @@ export default function AffiliateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,

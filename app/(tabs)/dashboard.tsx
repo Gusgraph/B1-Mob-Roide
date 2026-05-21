@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Activity, Bell, Boxes } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -10,7 +11,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
@@ -19,6 +21,8 @@ export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -55,7 +59,10 @@ export default function DashboardScreen() {
             />
           </View>
           <Bismel1Card>
-            <Text style={styles.cardTitle}>Active Products</Text>
+            <View style={styles.cardHeader}>
+              <Boxes color={colors.cyan} size={19} />
+              <Text style={styles.cardTitle}>Active Products</Text>
+            </View>
             {products.length ? (
               products.slice(0, 4).map((product, index) => {
                 const record = asRecord(product);
@@ -71,7 +78,10 @@ export default function DashboardScreen() {
             )}
           </Bismel1Card>
           <Bismel1Card>
-            <Text style={styles.cardTitle}>Latest Activity</Text>
+            <View style={styles.cardHeader}>
+              <Activity color={colors.purple} size={19} />
+              <Text style={styles.cardTitle}>Latest Activity</Text>
+            </View>
             {activity.length ? (
               activity.slice(0, 5).map((item, index) => {
                 const record = asRecord(item);
@@ -86,7 +96,10 @@ export default function DashboardScreen() {
             )}
           </Bismel1Card>
           <Bismel1Card>
-            <Text style={styles.cardTitle}>Alerts / Status</Text>
+            <View style={styles.cardHeader}>
+              <Bell color={colors.warning} size={19} />
+              <Text style={styles.cardTitle}>Alerts / Status</Text>
+            </View>
             {alerts.length ? (
               alerts.slice(0, 4).map((item, index) => {
                 const record = asRecord(item);
@@ -97,7 +110,7 @@ export default function DashboardScreen() {
                 );
               })
             ) : (
-              <StatusBadge label="No alerts returned" />
+              <StatusBadge label="No alerts returned" status="neutral" />
             )}
           </Bismel1Card>
         </>
@@ -106,7 +119,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   metrics: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -116,6 +129,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.h3,
     fontWeight: '700',
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   row: {
     alignItems: 'center',
@@ -134,4 +152,3 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
 });
-

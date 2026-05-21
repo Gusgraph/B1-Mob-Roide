@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { BadgeDollarSign, ExternalLink } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -7,7 +8,8 @@ import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { asRecord, firstString } from '@/utils/records';
@@ -17,6 +19,8 @@ export default function BillingScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -52,10 +56,12 @@ export default function BillingScreen() {
       {error ? <ErrorState message={error} /> : null}
       {summary ? (
         <Bismel1Card>
+          <BadgeDollarSign color={colors.success} size={19} />
           <Text style={styles.title}>{firstString(summary, ['plan_name', 'plan', 'status'], 'Billing')}</Text>
           <Text style={styles.text}>{firstString(summary, ['renewal_date', 'next_invoice_at', 'message'], '')}</Text>
           {canOpenPortal ? (
             <Pressable style={styles.button} onPress={openPortal} disabled={isOpening}>
+              <ExternalLink color={colors.white} size={15} />
               <Text style={styles.buttonText}>{isOpening ? 'Opening' : 'Open Billing Portal'}</Text>
             </Pressable>
           ) : null}
@@ -65,7 +71,7 @@ export default function BillingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,
@@ -78,7 +84,10 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     marginTop: spacing.sm,
     padding: spacing.md,
   },
@@ -87,4 +96,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

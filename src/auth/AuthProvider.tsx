@@ -21,6 +21,21 @@ export const AuthContext = createContext<AuthContextValue | undefined>(undefined
 const extractToken = (response: LoginResponse) =>
   response.token || response.access_token || response.bearer_token;
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? value as Record<string, unknown> : {};
+
+const normalizeUser = (value: unknown): MobileUser => {
+  const record = asRecord(value);
+  const nestedUser = asRecord(record.user);
+  const userRecord = Object.keys(nestedUser).length ? nestedUser : record;
+
+  return {
+    ...(userRecord as MobileUser),
+    affiliate_approved: Boolean(record.affiliate_approved || userRecord.affiliate_approved),
+    affiliateApproved: Boolean(record.affiliateApproved || userRecord.affiliateApproved),
+  };
+};
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,8 +58,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [clearSession]);
 
   const reloadMe = useCallback(async () => {
-    const nextUser = await api.get<MobileUser>(endpoints.auth.me);
-    setUser(nextUser);
+    const nextUser = await api.get<unknown>(endpoints.auth.me);
+    setUser(normalizeUser(nextUser));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -63,7 +78,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       await tokenStore.setAccessToken(token);
-      setUser(response.user || (await api.get<MobileUser>(endpoints.auth.me)));
+      setUser(normalizeUser(response.user || (await api.get<unknown>(endpoints.auth.me))));
       router.replace('/(tabs)/dashboard' as never);
     } catch (error) {
       const message = customerSafeMessage(error);
@@ -86,9 +101,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const token = await tokenStore.getAccessToken();
         if (token) {
-          const nextUser = await api.get<MobileUser>(endpoints.auth.me);
+          const nextUser = await api.get<unknown>(endpoints.auth.me);
           if (mounted) {
-            setUser(nextUser);
+            setUser(normalizeUser(nextUser));
           }
         }
       } catch {

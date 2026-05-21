@@ -29,7 +29,7 @@ export type RefreshResponse = {
 };
 
 export type MobileUser = {
-  id: string | number;
+  id?: string | number;
   name?: string;
   email?: string;
   affiliate_approved?: boolean;
@@ -45,4 +45,3 @@ export type BrokerAccount = Record<string, unknown>;
 export type Order = Record<string, unknown>;
 export type Summary = Record<string, unknown>;
 export type SupportTicket = Record<string, unknown>;
-

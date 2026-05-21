@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { ChartNoAxesCombined } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -8,7 +9,8 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { MetricCard } from '@/components/MetricCard';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { asRecord, firstString } from '@/utils/records';
 
@@ -17,6 +19,8 @@ export default function PerformanceScreen() {
   const [curve, setCurve] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +49,7 @@ export default function PerformanceScreen() {
         <>
           <MetricCard label="Return" value={firstString(summary, ['return', 'total_return', 'pnl'])} />
           <Bismel1Card>
+            <ChartNoAxesCombined color={colors.purple} size={19} />
             <Text style={styles.title}>Curve Data</Text>
             <Text style={styles.text}>{firstString(asRecord(curve), ['points_count', 'count'], 'Loaded from API')}</Text>
           </Bismel1Card>
@@ -54,7 +59,7 @@ export default function PerformanceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,
@@ -65,4 +70,3 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
   },
 });
-

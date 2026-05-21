@@ -1,19 +1,23 @@
 import { StyleSheet, Text } from 'react-native';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { Bismel1Card } from '@/components/Bismel1Card';
 
 export function MetricCard({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   return (
     <Bismel1Card style={styles.card}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={[styles.value, { color: valueTone(value, colors) }]}>{value}</Text>
     </Bismel1Card>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     minWidth: '47%',
     flex: 1,
@@ -30,3 +34,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+
+const valueTone = (value: string, colors: ThemeColors) => {
+  if (value.trim().startsWith('-')) {
+    return colors.danger;
+  }
+
+  if (value.trim().startsWith('+')) {
+    return colors.success;
+  }
+
+  return colors.text;
+};

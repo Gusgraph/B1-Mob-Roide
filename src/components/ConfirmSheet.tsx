@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
@@ -22,6 +23,9 @@ export function ConfirmSheet({
   onCancel,
   onConfirm,
 }: ConfirmSheetProps) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onCancel}>
       <View style={styles.backdrop}>
@@ -42,7 +46,7 @@ export function ConfirmSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -50,8 +54,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
     gap: spacing.md,
     padding: spacing.xl,
   },
@@ -72,7 +76,7 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 9,
     flex: 1,
     padding: spacing.md,
   },
@@ -91,4 +95,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

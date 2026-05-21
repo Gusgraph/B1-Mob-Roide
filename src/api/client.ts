@@ -24,29 +24,78 @@ type RequestOptions = {
   retrying?: boolean;
 };
 
-const parseEnvelope = async <T>(response: Response): Promise<T> => {
-  let payload: ApiEnvelope<T>;
+const REQUEST_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout = async (url: string, init: RequestInit) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    payload = (await response.json()) as ApiEnvelope<T>;
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const parseEnvelope = async <T>(response: Response): Promise<T> => {
+  let payload: unknown;
+  let responseText = '';
+
+  try {
+    responseText = await response.text();
   } catch {
     throw new ApiError('The server returned an unreadable response.', 'invalid_json', response.status);
   }
 
-  if (!payload || typeof payload !== 'object' || typeof payload.ok !== 'boolean') {
+  try {
+    payload = JSON.parse(responseText) as unknown;
+  } catch {
+    if (response.status === 404) {
+      throw new ApiError(
+        'The mobile API route is not available on the server yet.',
+        'mobile_route_not_found',
+        response.status,
+      );
+    }
+
+    throw new ApiError('The server returned an unreadable response.', 'invalid_json', response.status);
+  }
+
+  if (!payload || typeof payload !== 'object') {
     throw new ApiError('The server returned an unexpected response.', 'invalid_envelope', response.status);
   }
 
-  if (!payload.ok) {
+  const record = payload as Record<string, unknown>;
+
+  if (typeof record.ok !== 'boolean') {
+    const message = typeof record.message === 'string' ? record.message : '';
+
+    if (response.status === 404 && message.includes('route')) {
+      throw new ApiError(
+        'The mobile API route is not available on the server yet.',
+        'mobile_route_not_found',
+        response.status,
+      );
+    }
+
+    throw new ApiError('The server returned an unexpected response.', 'invalid_envelope', response.status);
+  }
+
+  const envelope = payload as ApiEnvelope<T>;
+
+  if (!envelope.ok) {
     throw new ApiError(
-      payload.error?.message || 'Unable to complete the request.',
-      payload.error?.code || 'api_error',
+      envelope.error?.message || 'Unable to complete the request.',
+      envelope.error?.code || 'api_error',
       response.status,
-      payload.error?.details,
+      envelope.error?.details,
     );
   }
 
-  return payload.data;
+  return envelope.data;
 };
 
 const extractToken = (response: RefreshResponse) =>
@@ -58,7 +107,7 @@ const refreshAccessToken = async () => {
     return null;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.auth.refresh}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}${endpoints.auth.refresh}`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -95,11 +144,20 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method || 'GET',
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let response: Response;
+
+  try {
+    response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  } catch {
+    throw new ApiError(
+      'The mobile API could not be reached from this device.',
+      'network_unavailable',
+    );
+  }
 
   if (response.status === 401 && options.auth !== false && !options.retrying) {
     const refreshedToken = await refreshAccessToken();
@@ -126,4 +184,3 @@ export const api = {
     apiRequest<T>(path, { method: 'POST', body, auth }),
   delete: <T>(path: string, auth = true) => apiRequest<T>(path, { method: 'DELETE', auth }),
 };
-

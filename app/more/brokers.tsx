@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Building2, Link as LinkIcon, Unlink } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -10,7 +11,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { asArray, asRecord, firstString } from '@/utils/records';
@@ -24,6 +26,8 @@ export default function BrokerAccountsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   const load = async () => {
     setError(null);
@@ -92,10 +96,12 @@ export default function BrokerAccountsScreen() {
         const canDisconnect = Boolean(account.can_disconnect || asRecord(account.actions).disconnect);
         return (
           <Bismel1Card key={String(account.id || account.broker_account_id || index)}>
+            <Building2 color={colors.accent} size={19} />
             <Text style={styles.title}>{firstString(account, ['name', 'broker', 'provider'], 'Broker Account')}</Text>
             <StatusBadge label={firstString(account, ['status', 'connection_status'], 'Status unavailable')} />
             {canDisconnect ? (
               <Pressable style={styles.dangerButton} onPress={() => setDisconnectTarget(account)}>
+                <Unlink color={colors.white} size={15} />
                 <Text style={styles.buttonText}>Disconnect</Text>
               </Pressable>
             ) : null}
@@ -104,6 +110,7 @@ export default function BrokerAccountsScreen() {
       })}
       {connectAllowed ? (
         <Bismel1Card>
+          <LinkIcon color={colors.success} size={19} />
           <Text style={styles.title}>Connect Alpaca</Text>
           <View style={styles.field}>
             <Text style={styles.label}>API Key</Text>
@@ -129,6 +136,7 @@ export default function BrokerAccountsScreen() {
             />
           </View>
           <Pressable disabled={!canSubmitConnect} onPress={connect} style={[styles.button, !canSubmitConnect && styles.disabled]}>
+            <LinkIcon color={colors.white} size={15} />
             <Text style={styles.buttonText}>{isSubmitting ? 'Submitting' : 'Connect'}</Text>
           </Pressable>
         </Bismel1Card>
@@ -150,7 +158,7 @@ export default function BrokerAccountsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,
@@ -167,7 +175,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 9,
     borderWidth: 1,
     color: colors.text,
     fontSize: typography.body,
@@ -176,13 +184,19 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     padding: spacing.md,
   },
   dangerButton: {
     alignItems: 'center',
     backgroundColor: colors.danger,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     marginTop: spacing.sm,
     padding: spacing.md,
   },
@@ -194,4 +208,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

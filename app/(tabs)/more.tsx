@@ -1,27 +1,31 @@
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BadgeDollarSign, Bot, Building2, ChartNoAxesCombined, ChevronRight, Headset, LogOut, Package, ReceiptText, Settings, UserRound } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/auth/useAuth';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 const menuItems = [
-  { label: 'Products', href: '/more/products' },
-  { label: 'Broker Accounts', href: '/more/brokers' },
-  { label: 'Orders', href: '/more/orders' },
-  { label: 'Performance', href: '/more/performance' },
-  { label: 'Billing', href: '/more/billing' },
-  { label: 'Support', href: '/more/support' },
-  { label: 'Profile', href: '/more/profile' },
-  { label: 'Settings', href: '/more/settings' },
+  { label: 'Products', href: '/more/products', icon: Package },
+  { label: 'Broker Accounts', href: '/more/brokers', icon: Building2 },
+  { label: 'Orders', href: '/more/orders', icon: ReceiptText },
+  { label: 'Performance', href: '/more/performance', icon: ChartNoAxesCombined },
+  { label: 'Billing', href: '/more/billing', icon: BadgeDollarSign },
+  { label: 'Support', href: '/more/support', icon: Headset },
+  { label: 'Profile', href: '/more/profile', icon: UserRound },
+  { label: 'Settings', href: '/more/settings', icon: Settings },
 ] as const;
 
 export default function MoreScreen() {
   const { logout, user } = useAuth();
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const affiliateApproved = Boolean(user?.affiliate_approved || user?.affiliateApproved);
   const visibleItems = affiliateApproved
-    ? [...menuItems.slice(0, 6), { label: 'Affiliate', href: '/more/affiliate' }, ...menuItems.slice(6)]
+    ? [...menuItems.slice(0, 6), { label: 'Affiliate', href: '/more/affiliate', icon: Bot }, ...menuItems.slice(6)]
     : menuItems;
 
   return (
@@ -30,11 +34,16 @@ export default function MoreScreen() {
         {visibleItems.map((item) => (
           <Link key={item.href} href={item.href as never} asChild>
             <Pressable style={styles.item}>
-              <Text style={styles.itemText}>{item.label}</Text>
+              <View style={styles.itemLeft}>
+                <item.icon color={colors.accent} size={19} />
+                <Text style={styles.itemText}>{item.label}</Text>
+              </View>
+              <ChevronRight color={colors.textMuted} size={17} />
             </Pressable>
           </Link>
         ))}
         <Pressable style={styles.logout} onPress={logout}>
+          <LogOut color={colors.danger} size={19} />
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
       </View>
@@ -42,16 +51,24 @@ export default function MoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   menu: {
     gap: spacing.md,
   },
   item: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 9,
     borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     padding: spacing.lg,
+  },
+  itemLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
   },
   itemText: {
     color: colors.text,
@@ -61,7 +78,10 @@ const styles = StyleSheet.create({
   logout: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     marginTop: spacing.md,
     padding: spacing.lg,
   },

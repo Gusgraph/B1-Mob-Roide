@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { ReceiptText } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -8,7 +9,8 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { formatDateTime } from '@/utils/dates';
 import { asArray, asRecord, firstString } from '@/utils/records';
@@ -17,6 +19,8 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +44,7 @@ export default function OrdersScreen() {
       {!isLoading && !error && orders.length === 0 ? <EmptyState message="No orders returned." /> : null}
       {orders.map((order, index) => (
         <Bismel1Card key={String(order.id || index)}>
+          <ReceiptText color={colors.accent} size={19} />
           <Text style={styles.title}>{firstString(order, ['symbol', 'client_order_id', 'id'], 'Order')}</Text>
           <Text style={styles.text}>{firstString(order, ['status', 'side', 'type'], '')}</Text>
           <Text style={styles.text}>{formatDateTime(order.created_at || order.submitted_at)}</Text>
@@ -49,7 +54,7 @@ export default function OrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,
@@ -60,4 +65,3 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
   },
 });
-

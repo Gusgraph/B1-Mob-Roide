@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Bot, RadioTower } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -9,7 +10,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { asArray, asRecord, firstString } from '@/utils/records';
 
@@ -18,6 +20,8 @@ export default function AutomationScreen() {
   const [automation, setAutomation] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -52,16 +56,20 @@ export default function AutomationScreen() {
       {!isLoading && !error && !product ? <EmptyState message="No automation product is available." /> : null}
       {product ? (
         <Bismel1Card>
+          <Bot color={colors.accent} size={19} />
           <Text style={styles.title}>{firstString(product, ['name', 'title', 'slug'], 'Product')}</Text>
           <StatusBadge label={firstString(asRecord(automation), ['status', 'state'], 'Status unavailable')} />
-          <Text style={styles.text}>Symbols returned: {symbols.length}</Text>
+          <View style={styles.symbolRow}>
+            <RadioTower color={colors.purple} size={15} />
+            <Text style={styles.text}>Symbols returned: {symbols.length}</Text>
+          </View>
         </Bismel1Card>
       ) : null}
     </AppShell>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: typography.h3,
@@ -71,5 +79,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.body,
   },
+  symbolRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+  },
 });
-

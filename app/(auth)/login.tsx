@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LogIn, Mail, Shield } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { ErrorState } from '@/components/ErrorState';
 import { useAuth } from '@/auth/useAuth';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
@@ -12,6 +14,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   const submit = async () => {
     setIsSubmitting(true);
@@ -29,7 +33,10 @@ export default function LoginScreen() {
     <AppShell title="Login" subtitle="Access your Bismel1 mobile dashboard.">
       <View style={styles.form}>
         <View style={styles.field}>
-          <Text style={styles.label}>Email</Text>
+          <View style={styles.labelRow}>
+            <Mail color={colors.accent} size={15} />
+            <Text style={styles.label}>Email</Text>
+          </View>
           <TextInput
             autoCapitalize="none"
             autoComplete="email"
@@ -43,7 +50,10 @@ export default function LoginScreen() {
           />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Password</Text>
+          <View style={styles.labelRow}>
+            <Shield color={colors.purple} size={15} />
+            <Text style={styles.label}>Password</Text>
+          </View>
           <TextInput
             autoCapitalize="none"
             onChangeText={setPassword}
@@ -62,6 +72,7 @@ export default function LoginScreen() {
           onPress={submit}
           style={[styles.button, disabled && styles.disabled]}
         >
+          <LogIn color={colors.white} size={17} />
           <Text style={styles.buttonText}>{isSubmitting ? 'Signing in' : 'Login'}</Text>
         </Pressable>
       </View>
@@ -69,11 +80,16 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   form: {
     gap: spacing.lg,
   },
   field: {
+    gap: spacing.sm,
+  },
+  labelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
     gap: spacing.sm,
   },
   label: {
@@ -84,7 +100,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 9,
     borderWidth: 1,
     color: colors.text,
     fontSize: typography.body,
@@ -93,7 +109,10 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     padding: spacing.lg,
   },
   disabled: {
@@ -105,4 +124,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

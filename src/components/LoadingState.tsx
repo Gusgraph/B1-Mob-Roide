@@ -1,9 +1,13 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 export function LoadingState({ label = 'Loading' }: { label?: string }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   return (
     <View style={styles.container}>
       <ActivityIndicator color={colors.accent} />
@@ -12,7 +16,7 @@ export function LoadingState({ label = 'Loading' }: { label?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: spacing.md,
@@ -23,4 +27,3 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
   },
 });
-

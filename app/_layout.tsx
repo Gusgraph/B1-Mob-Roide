@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '@/auth/AuthProvider';
-import { colors } from '@/theme/colors';
+import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
-export default function RootLayout() {
+function RootStack() {
+  const { colors, isDark } = useTheme();
+
   return (
     <AuthProvider>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: colors.background },
@@ -18,17 +20,16 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="more/products" options={{ title: 'Products' }} />
-        <Stack.Screen name="more/brokers" options={{ title: 'Broker Accounts' }} />
-        <Stack.Screen name="more/orders" options={{ title: 'Orders' }} />
-        <Stack.Screen name="more/performance" options={{ title: 'Performance' }} />
-        <Stack.Screen name="more/billing" options={{ title: 'Billing' }} />
-        <Stack.Screen name="more/support" options={{ title: 'Support' }} />
-        <Stack.Screen name="more/affiliate" options={{ title: 'Affiliate' }} />
-        <Stack.Screen name="more/profile" options={{ title: 'Profile' }} />
-        <Stack.Screen name="more/settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="more" options={{ headerShown: false }} />
       </Stack>
     </AuthProvider>
   );
 }
 
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootStack />
+    </ThemeProvider>
+  );
+}

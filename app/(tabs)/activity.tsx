@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Activity as ActivityIcon } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -8,7 +9,8 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { asArray, asRecord, firstString } from '@/utils/records';
@@ -22,6 +24,8 @@ export default function ActivityScreen() {
   const [system, setSystem] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     const load = async () => {
@@ -59,6 +63,7 @@ export default function ActivityScreen() {
       {!isLoading && !error && rows.length === 0 ? <EmptyState message="No activity returned." /> : null}
       {rows.map((item, index) => (
         <Bismel1Card key={String(item.id || index)}>
+          <ActivityIcon color={tab === 'trades' ? colors.cyan : colors.purple} size={19} />
           <Text style={styles.title}>{firstString(item, ['symbol', 'title', 'type', 'event'], 'Activity')}</Text>
           <Text style={styles.text}>{firstString(item, ['message', 'description', 'status'], '')}</Text>
           <Text style={styles.time}>{formatDateTime(item.created_at || item.timestamp || item.time)}</Text>
@@ -68,17 +73,17 @@ export default function ActivityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   segment: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 9,
     flexDirection: 'row',
     gap: spacing.sm,
     padding: spacing.xs,
   },
   segmentButton: {
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 7,
     flex: 1,
     padding: spacing.md,
   },
@@ -104,4 +109,3 @@ const styles = StyleSheet.create({
     fontSize: typography.small,
   },
 });
-

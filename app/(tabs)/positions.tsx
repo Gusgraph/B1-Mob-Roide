@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { ChartCandlestick, XCircle } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
@@ -9,7 +10,8 @@ import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { colors } from '@/theme/colors';
+import { ThemeColors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { formatMoney } from '@/utils/money';
@@ -21,6 +23,8 @@ export default function PositionsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   const load = async () => {
     setError(null);
@@ -80,6 +84,7 @@ export default function PositionsScreen() {
 
         return (
           <Bismel1Card key={String(position.id || symbol || index)}>
+            <ChartCandlestick color={colors.accent} size={19} />
             <Text style={styles.symbol}>{symbol}</Text>
             <Text style={styles.text}>Qty: {firstString(position, ['qty', 'quantity'])}</Text>
             <Text style={styles.text}>Average Entry: {formatMoney(firstNumber(position, ['average_entry', 'avg_entry_price']))}</Text>
@@ -88,6 +93,7 @@ export default function PositionsScreen() {
             <Text style={styles.text}>Unrealized P/L: {formatMoney(firstNumber(position, ['unrealized_pl', 'unrealized_pnl']))}</Text>
             {actionAllowed ? (
               <Pressable style={styles.closeButton} onPress={() => setSelected(position)}>
+                <XCircle color={colors.white} size={15} />
                 <Text style={styles.closeText}>Manual Close</Text>
               </Pressable>
             ) : null}
@@ -107,7 +113,7 @@ export default function PositionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   symbol: {
     color: colors.text,
     fontSize: typography.h2,
@@ -121,7 +127,10 @@ const styles = StyleSheet.create({
   closeButton: {
     alignItems: 'center',
     backgroundColor: colors.danger,
-    borderRadius: 8,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
     marginTop: spacing.sm,
     padding: spacing.md,
   },
