@@ -119,8 +119,7 @@ export default function DashboardScreen() {
       setIsSnapshotLoading(true);
       setSnapshotError(null);
       try {
-        const accountKey = activeAccount.pathValue || activeAccount.id;
-        const nextSnapshot = asRecord(await api.get<unknown>(endpoints.accountSnapshot(accountKey)));
+        const nextSnapshot = await loadAccountSnapshot(activeAccount);
 
         if (mounted) {
           setSnapshot(nextSnapshot);
@@ -145,7 +144,8 @@ export default function DashboardScreen() {
   }, [activeAccount]);
 
   const dashboardSnapshot = asRecord(dashboard?.account_snapshot || dashboard?.snapshot || dashboard?.account);
-  const effectiveSnapshot = asRecord(snapshot || dashboardSnapshot || activeAccount?.raw);
+  const fallbackSnapshot = normalizeAccountSnapshot(activeAccount?.raw);
+  const effectiveSnapshot = asRecord(snapshot || fallbackSnapshot || dashboardSnapshot);
   const brokerSnapshot = asRecord(effectiveSnapshot.broker);
   const products = asArray(dashboard?.active_products || dashboard?.products);
   const persistedDismissedAlertKeys = asArray<unknown>(dashboard?.dismissed_alert_keys).map((key) => String(key));
@@ -162,7 +162,7 @@ export default function DashboardScreen() {
     () => trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber),
     [trades],
   );
-  const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed && activeAccount.pathValue !== '1');
+  const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed);
   const openPositionsCount = scopedPositions.length || firstNumber(effectiveSnapshot, ['open_positions_count', 'positions_count']) || firstNumber(asRecord(dashboard), ['open_positions_count', 'positions_count']);
   const ordersCount = scopedOrders.length || firstNumber(effectiveSnapshot, ['orders_count', 'open_orders_count']) || firstNumber(asRecord(dashboard), ['orders_count', 'open_orders_count']);
   const equity = firstNumber(effectiveSnapshot, ['equity', 'portfolio_value', 'balance']) ??
@@ -408,6 +408,45 @@ const isConnectedAccount = (account: ManagedAccount) => {
   return raw.connected !== false && !status.includes('disconnect') && !status.includes('removed');
 };
 
+const loadAccountSnapshot = async (account: ManagedAccount) => {
+  const keys = [
+    account.id,
+    firstString(account.raw, ['broker_account_ref', 'broker_account_id'], ''),
+    firstString(account.raw, ['account_ref', 'account_id'], ''),
+    account.pathValue,
+  ].filter((key): key is string => Boolean(key));
+  const uniqueKeys = [...new Set(keys)];
+  let lastError: unknown = null;
+
+  for (const key of uniqueKeys) {
+    try {
+      return normalizeAccountSnapshot(await api.get<unknown>(endpoints.accountSnapshot(key)));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Account snapshot unavailable.');
+};
+
+const normalizeAccountSnapshot = (value: unknown) => {
+  const record = asRecord(value);
+  const nested = asRecord(record.account_snapshot || record.snapshot || record.account || record.broker_account);
+  const source = Object.keys(nested).length ? nested : record;
+  const broker = asRecord(source.broker);
+
+  return {
+    ...source,
+    broker: Object.keys(broker).length ? broker : {
+      broker: firstString(source, ['broker', 'provider'], ''),
+      environment: firstString(source, ['environment', 'mode'], ''),
+      buying_power: source.buying_power,
+      equity: source.equity,
+      last_sync: source.last_sync,
+    },
+  };
+};
+
 const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAccount | null) => {
   if (!account) {
     return rows;
@@ -416,7 +455,7 @@ const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAc
   const hasScopedIdentity = rows.some((row) => rowHasAccountIdentity(row));
 
   if (!hasScopedIdentity) {
-    return account.pathValue === '1' ? rows : [];
+    return rows;
   }
 
   return rows.filter((row) => rowMatchesAccount(row, account));
@@ -430,7 +469,7 @@ const filterTradesByAccount = (trades: TradeActivityItem[], account: ManagedAcco
   const hasScopedIdentity = trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber);
 
   if (!hasScopedIdentity) {
-    return account.pathValue === '1' ? trades : [];
+    return trades;
   }
 
   return trades.filter((trade) => tradeMatchesAccount(trade, account));
