@@ -20,6 +20,13 @@ expo-env.d.ts
 
 # Metro
 .metro-health-check*
+metro*.log
+
+# local visual checkpoints
+/bismel1-*.png
+/bottomnav-*.png
+/phone-*.png
+/text-nav-*.png
 
 # debug
 npm-debug.*
