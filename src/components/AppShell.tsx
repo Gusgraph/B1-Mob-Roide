@@ -74,7 +74,7 @@ export function AppShell({ title, subtitle, scroll = true, headerAccessory, show
                       onPress={() => router.push(item.href as never)}
                       style={[styles.headerNavButton, active && styles.headerNavButtonActive]}
                     >
-                      <item.icon color={active ? colors.black : colors.textMuted} size={19} />
+                      <item.icon color={active ? colors.warning : colors.textMuted} size={19} />
                     </Pressable>
                   );
                 })}
@@ -257,38 +257,48 @@ const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsive
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    gap: 5,
+    gap: 7,
     justifyContent: 'flex-end',
   },
   menuButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: 11,
     borderWidth: 1,
     height: 39,
     justifyContent: 'center',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.19,
+    shadowRadius: 11,
     width: 39,
   },
   headerNav: {
     alignItems: 'center',
     flexShrink: 1,
     flexDirection: 'row',
-    gap: 3,
+    gap: 7,
   },
   headerNavButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: 9,
     borderWidth: 1,
     height: 31,
     justifyContent: 'center',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.19,
+    shadowRadius: 11,
     width: 31,
   },
   headerNavButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.cyan,
+    backgroundColor: colors.surface,
+    borderColor: colors.warning,
+    borderWidth: 2,
+    shadowColor: colors.warning,
+    shadowOpacity: 0.37,
+    shadowRadius: 13,
   },
   marketPattern: {
     height: layout.patternHeight,
