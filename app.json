@@ -3,7 +3,7 @@
     "name": "Bismel1Mobile",
     "slug": "Bismel1Mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "bismel1mobile",
     "userInterfaceStyle": "automatic",

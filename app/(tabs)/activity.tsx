@@ -9,7 +9,7 @@
 // - File Path: activity.tsx - app/(tabs)/activity.tsx
 // =====================================================
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Activity as ActivityIcon, ArrowUp, CircleDot } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
@@ -39,7 +39,8 @@ export default function ActivityScreen() {
   const [showBackTop, setShowBackTop] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { height, width } = useWindowDimensions();
+  const styles = makeStyles(colors, width, height);
 
   const loadActivity = useCallback(async () => {
     setIsLoading(true);
@@ -109,25 +110,27 @@ export default function ActivityScreen() {
       {isLoading ? <LoadingState label="Loading activity" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && rows.length === 0 ? <EmptyState message="No activity returned." /> : null}
-      {rows.map((item, index) => (
-        tab === 'trades' ? (
-          <TradeActivityCard
-            colors={colors}
-            item={item}
-            key={String(item.id || index)}
-            styles={styles}
-            tone={index % 2 === 0 ? 'cyan' : 'green'}
-          />
-        ) : (
-          <SystemActivityCard
-            colors={colors}
-            item={item}
-            key={String(item.id || index)}
-            styles={styles}
-            tone={index % 2 === 0 ? 'cyan' : 'purple'}
-          />
-        )
-      ))}
+      <View style={styles.cardGrid}>
+        {rows.map((item, index) => (
+          tab === 'trades' ? (
+            <TradeActivityCard
+              colors={colors}
+              item={item}
+              key={String(item.id || index)}
+              styles={styles}
+              tone={index % 2 === 0 ? 'cyan' : 'green'}
+            />
+          ) : (
+            <SystemActivityCard
+              colors={colors}
+              item={item}
+              key={String(item.id || index)}
+              styles={styles}
+              tone={index % 2 === 0 ? 'cyan' : 'purple'}
+            />
+          )
+        ))}
+      </View>
     </AppShell>
   );
 }
@@ -413,7 +416,10 @@ const formatTitle = (value: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, width: number, height: number) => {
+  const useColumns = Math.min(width, height) >= 600 || width >= 900;
+
+  return StyleSheet.create({
   segment: {
     backgroundColor: colors.surface,
     borderRadius: 9,
@@ -429,6 +435,11 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   active: {
     backgroundColor: colors.accentMuted,
+  },
+  cardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 17,
   },
   segmentText: {
     color: colors.text,
@@ -450,6 +461,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowOffset: { width: 0, height: 11 },
     shadowOpacity: 0.17,
     shadowRadius: 19,
+    width: useColumns ? '48%' : '100%',
   },
   attachedTime: {
     backgroundColor: colors.accentMuted,
@@ -572,3 +584,4 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+};

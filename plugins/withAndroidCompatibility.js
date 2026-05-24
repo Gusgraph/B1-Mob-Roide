@@ -25,7 +25,28 @@ module.exports = function withAndroidCompatibility(config) {
         },
       },
     ];
+    manifest['uses-feature'] = [
+      ...asArray(manifest['uses-feature']).filter((feature) => {
+        const name = feature?.$?.['android:name'];
+
+        return name !== 'android.hardware.touchscreen' && name !== 'android.software.leanback';
+      }),
+      {
+        $: {
+          'android:name': 'android.hardware.touchscreen',
+          'android:required': 'false',
+        },
+      },
+      {
+        $: {
+          'android:name': 'android.software.leanback',
+          'android:required': 'false',
+        },
+      },
+    ];
 
     return configWithManifest;
   });
 };
+
+const asArray = (value) => Array.isArray(value) ? value : [];

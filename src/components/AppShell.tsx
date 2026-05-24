@@ -34,10 +34,10 @@ type AppShellProps = PropsWithChildren<{
 
 export function AppShell({ title, subtitle, scroll = true, headerAccessory, showAccountNav = false, refreshing = false, onRefresh, scrollRef, onScroll, floatingAction, children }: AppShellProps) {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const isWide = width >= 761;
   const [accountNavOpen, setAccountNavOpen] = useState(false);
-  const styles = makeStyles(colors);
+  const styles = makeStyles(colors, getResponsiveShell(width, height));
 
   const content = (
     <View style={styles.content}>
@@ -153,16 +153,53 @@ const marketCandles = [
   { left: '91%', top: 101, wick: 117, body: 45, bodyTop: 39 },
 ] as const;
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const getResponsiveShell = (width: number, height: number) => {
+  const shortestSide = Math.min(width, height);
+  const isTvCanvas = width >= 1181 && width / Math.max(height, 1) >= 1.5;
+
+  if (isTvCanvas) {
+    return {
+      contentMaxWidth: 1181,
+      horizontalPadding: 43,
+      verticalPadding: 31,
+      patternTop: 89,
+      patternHeight: 319,
+    };
+  }
+
+  if (shortestSide >= 600 || width >= 761) {
+    return {
+      contentMaxWidth: 881,
+      horizontalPadding: 31,
+      verticalPadding: 31,
+      patternTop: 79,
+      patternHeight: 281,
+    };
+  }
+
+  return {
+    contentMaxWidth: undefined,
+    horizontalPadding: width <= 360 ? 17 : spacing.xl,
+    verticalPadding: spacing.xl,
+    patternTop: 73,
+    patternHeight: 251,
+  };
+};
+
+const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsiveShell>) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
+    alignSelf: 'center',
     flexGrow: 1,
     gap: spacing.lg,
-    padding: spacing.xl,
+    maxWidth: layout.contentMaxWidth,
+    paddingHorizontal: layout.horizontalPadding,
+    paddingVertical: layout.verticalPadding,
     position: 'relative',
+    width: '100%',
     zIndex: 1,
   },
   menuButton: {
@@ -189,13 +226,13 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     zIndex: 4,
   },
   marketPattern: {
-    height: 251,
+    height: layout.patternHeight,
     left: 0,
     opacity: 0.17,
     overflow: 'hidden',
     position: 'absolute',
     right: 0,
-    top: 73,
+    top: layout.patternTop,
     zIndex: 0,
   },
   candle: {

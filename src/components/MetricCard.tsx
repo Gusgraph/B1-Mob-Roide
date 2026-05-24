@@ -8,7 +8,7 @@
 // - https://Gusgraph.com
 // - File Path: MetricCard.tsx - src/components/MetricCard.tsx
 // =====================================================
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -17,7 +17,8 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 
 export function MetricCard({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { width } = useWindowDimensions();
+  const styles = makeStyles(colors, width);
 
   return (
     <Bismel1Card style={styles.card}>
@@ -27,10 +28,10 @@ export function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, width: number) => StyleSheet.create({
   card: {
-    minWidth: '47%',
     flex: 1,
+    minWidth: width >= 900 ? '31%' : '47%',
   },
   label: {
     color: colors.textMuted,

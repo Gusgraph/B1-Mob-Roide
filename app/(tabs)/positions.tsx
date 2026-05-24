@@ -9,7 +9,7 @@
 // - File Path: positions.tsx - app/(tabs)/positions.tsx
 // =====================================================
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ArrowUp, ChartCandlestick, XCircle } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
@@ -35,7 +35,8 @@ export default function PositionsScreen() {
   const [showBackTop, setShowBackTop] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { height, width } = useWindowDimensions();
+  const styles = makeStyles(colors, width, height);
 
   const load = async () => {
     setError(null);
@@ -101,67 +102,69 @@ export default function PositionsScreen() {
       {isLoading ? <LoadingState label="Loading positions" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && positions.length === 0 ? <EmptyState message="No open positions returned." /> : null}
-      {positions.map((position, index) => {
-        const symbol = firstString(position, ['symbol'], 'Position');
-        const actions = asRecord(position.actions);
-        const actionAllowed = Boolean(
-          position.action_allowed_manual_close || position.manual_close_allowed || position.can_manual_close || actions.manual_close,
-        );
-        const pnl = firstNumber(position, ['unrealized_pl', 'unrealized_pnl']);
-        const pnlTone = pnl === undefined ? 'default' : pnl < 0 ? 'danger' : pnl > 0 ? 'success' : 'default';
-        const isPositive = pnlTone === 'success';
-        const direction = firstString(position, ['side', 'direction'], 'Long');
-        const directionTone = direction.toLowerCase().includes('short') ? 'danger' : 'success';
+      <View style={styles.cardGrid}>
+        {positions.map((position, index) => {
+          const symbol = firstString(position, ['symbol'], 'Position');
+          const actions = asRecord(position.actions);
+          const actionAllowed = Boolean(
+            position.action_allowed_manual_close || position.manual_close_allowed || position.can_manual_close || actions.manual_close,
+          );
+          const pnl = firstNumber(position, ['unrealized_pl', 'unrealized_pnl']);
+          const pnlTone = pnl === undefined ? 'default' : pnl < 0 ? 'danger' : pnl > 0 ? 'success' : 'default';
+          const isPositive = pnlTone === 'success';
+          const direction = firstString(position, ['side', 'direction'], 'Long');
+          const directionTone = direction.toLowerCase().includes('short') ? 'danger' : 'success';
 
-        return (
-          <View
-            key={String(position.id || symbol || index)}
-            style={[styles.positionCard, index % 2 === 0 ? styles.cardCyan : styles.cardGreen]}
-          >
-            <Text style={[styles.attachedPnl, isPositive ? styles.attachedPnlPositive : pnlTone === 'danger' ? styles.attachedPnlNegative : null]}>
-              {formatSignedMoney(pnl)}
-            </Text>
-            <View style={styles.cardHeader}>
-              <View style={[styles.neonLine, index % 2 === 0 ? styles.neonLineCyan : styles.neonLineGreen]} />
-              <ChartCandlestick color={index % 2 === 0 ? colors.cyan : colors.success} size={19} />
-              <View style={styles.symbolCopy}>
-                <Text style={styles.symbol}>
-                  {symbol}{' '}
-                  <Text style={directionTone === 'success' ? styles.success : styles.danger}>{direction}</Text>
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.grid}>
-              <View style={styles.gridRow}>
-                <Text style={styles.gridCell}>{firstString(position, ['qty', 'quantity'])} shares</Text>
-                <Text style={[styles.gridCell, styles.gridCellRight]}>Value: {formatMoney(firstNumber(position, ['market_value']))}</Text>
-              </View>
-
-              <View style={styles.gridRow}>
-                <Text style={styles.gridCell}>Price: {formatMoney(firstNumber(position, ['current_price', 'market_price']))}</Text>
-                <Text style={[styles.gridCell, styles.gridCellRight]}>Entry: {formatMoney(firstNumber(position, ['avg_entry', 'average_entry', 'avg_entry_price']))}</Text>
-              </View>
-
-              <View style={[styles.gridRow, styles.gridRowSingle, actionAllowed ? null : styles.gridRowLast]}>
-                <Text style={styles.gridCell}>
-                  <Text>Unrealized P/L: </Text>
-                  <Text style={pnlTone === 'success' ? styles.success : pnlTone === 'danger' ? styles.danger : styles.gridText}>
-                    {formatSignedMoney(pnl)} ({formatRatioPercent(firstNumber(position, ['unrealized_pl_percent', 'unrealized_pnl_percent']))})
+          return (
+            <View
+              key={String(position.id || symbol || index)}
+              style={[styles.positionCard, index % 2 === 0 ? styles.cardCyan : styles.cardGreen]}
+            >
+              <Text style={[styles.attachedPnl, isPositive ? styles.attachedPnlPositive : pnlTone === 'danger' ? styles.attachedPnlNegative : null]}>
+                {formatSignedMoney(pnl)}
+              </Text>
+              <View style={styles.cardHeader}>
+                <View style={[styles.neonLine, index % 2 === 0 ? styles.neonLineCyan : styles.neonLineGreen]} />
+                <ChartCandlestick color={index % 2 === 0 ? colors.cyan : colors.success} size={19} />
+                <View style={styles.symbolCopy}>
+                  <Text style={styles.symbol}>
+                    {symbol}{' '}
+                    <Text style={directionTone === 'success' ? styles.success : styles.danger}>{direction}</Text>
                   </Text>
-                </Text>
+                </View>
               </View>
-            </View>
 
-            {actionAllowed ? (
-              <Pressable style={styles.closeButton} onPress={() => setSelected(position)}>
-                <XCircle color={colors.white} size={15} />
-                <Text style={styles.closeText}>Close Position</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        );
-      })}
+              <View style={styles.grid}>
+                <View style={styles.gridRow}>
+                  <Text style={styles.gridCell}>{firstString(position, ['qty', 'quantity'])} shares</Text>
+                  <Text style={[styles.gridCell, styles.gridCellRight]}>Value: {formatMoney(firstNumber(position, ['market_value']))}</Text>
+                </View>
+
+                <View style={styles.gridRow}>
+                  <Text style={styles.gridCell}>Price: {formatMoney(firstNumber(position, ['current_price', 'market_price']))}</Text>
+                  <Text style={[styles.gridCell, styles.gridCellRight]}>Entry: {formatMoney(firstNumber(position, ['avg_entry', 'average_entry', 'avg_entry_price']))}</Text>
+                </View>
+
+                <View style={[styles.gridRow, styles.gridRowSingle, actionAllowed ? null : styles.gridRowLast]}>
+                  <Text style={styles.gridCell}>
+                    <Text>Unrealized P/L: </Text>
+                    <Text style={pnlTone === 'success' ? styles.success : pnlTone === 'danger' ? styles.danger : styles.gridText}>
+                      {formatSignedMoney(pnl)} ({formatRatioPercent(firstNumber(position, ['unrealized_pl_percent', 'unrealized_pnl_percent']))})
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+
+              {actionAllowed ? (
+                <Pressable style={styles.closeButton} onPress={() => setSelected(position)}>
+                  <XCircle color={colors.white} size={15} />
+                  <Text style={styles.closeText}>Close Position</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
       <ConfirmSheet
         confirmLabel="Close Position"
         isLoading={isClosing}
@@ -175,7 +178,15 @@ export default function PositionsScreen() {
   );
 }
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, width: number, height: number) => {
+  const useColumns = Math.min(width, height) >= 600 || width >= 900;
+
+  return StyleSheet.create({
+  cardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 17,
+  },
   positionCard: {
     backgroundColor: colors.surface,
     borderColor: colors.cyan,
@@ -191,6 +202,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowOffset: { width: 0, height: 11 },
     shadowOpacity: 0.17,
     shadowRadius: 19,
+    width: useColumns ? '48%' : '100%',
   },
   cardCyan: {
     borderColor: colors.cyan,
@@ -330,3 +342,4 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+};
