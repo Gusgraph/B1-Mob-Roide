@@ -8,11 +8,12 @@
 // - https://Gusgraph.com
 // - File Path: AppShell.tsx - src/components/AppShell.tsx
 // =====================================================
-import { PropsWithChildren } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PropsWithChildren, ReactNode, RefObject, useState } from 'react';
+import { Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Moon, Sun } from 'lucide-react-native';
+import { Menu, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccountSideNav } from '@/components/AccountSideNav';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -22,47 +23,135 @@ type AppShellProps = PropsWithChildren<{
   title?: string;
   subtitle?: string;
   scroll?: boolean;
+  headerAccessory?: ReactNode;
+  showAccountNav?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  scrollRef?: RefObject<ScrollView | null>;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  floatingAction?: ReactNode;
 }>;
 
-export function AppShell({ title, subtitle, scroll = true, children }: AppShellProps) {
-  const { colors, isDark, toggleTheme } = useTheme();
+export function AppShell({ title, subtitle, scroll = true, headerAccessory, showAccountNav = false, refreshing = false, onRefresh, scrollRef, onScroll, floatingAction, children }: AppShellProps) {
+  const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 761;
+  const [accountNavOpen, setAccountNavOpen] = useState(false);
   const styles = makeStyles(colors);
 
   const content = (
     <View style={styles.content}>
-      <View style={styles.gridOne} />
-      <View style={styles.gridTwo} />
+      {showAccountNav ? (
+        <Pressable
+          accessibilityLabel="Open account navigation"
+          accessibilityRole="button"
+          onPress={() => setAccountNavOpen(true)}
+          style={styles.menuButton}
+        >
+          <Menu color={colors.text} size={19} />
+        </Pressable>
+      ) : null}
+      {headerAccessory ? <View style={styles.topRightActions}>{headerAccessory}</View> : null}
       {title ? (
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
+        <View style={[styles.header, showAccountNav && styles.headerWithMenu]}>
+          <View style={styles.titleRow}>
             <LinearGradient
-              colors={isDark ? [colors.cyan, colors.magenta] : [colors.accent, colors.purple]}
+              colors={[colors.cyan, colors.success]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.signalBar}
             />
-            <Pressable accessibilityRole="button" onPress={toggleTheme} style={styles.themeButton}>
-              {isDark ? <Sun color={colors.warning} size={17} /> : <Moon color={colors.purple} size={17} />}
-            </Pressable>
+            <Text style={styles.title}>{title}</Text>
           </View>
-          <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       ) : null}
       {children}
+      {showAccountNav ? (
+        <Modal animationType="fade" transparent visible={accountNavOpen} onRequestClose={() => setAccountNavOpen(false)}>
+          <View style={styles.drawerBackdrop}>
+            <Pressable
+              accessibilityLabel="Close account navigation"
+              accessibilityRole="button"
+              onPress={() => setAccountNavOpen(false)}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[styles.drawer, isWide && styles.drawerWide]}>
+              <View style={styles.drawerHeader}>
+                <Text style={styles.drawerTitle}>Accounts</Text>
+                <Pressable
+                  accessibilityLabel="Close account navigation"
+                  accessibilityRole="button"
+                  onPress={() => setAccountNavOpen(false)}
+                  style={styles.drawerClose}
+                >
+                  <X color={colors.text} size={19} />
+                </Pressable>
+              </View>
+              <AccountSideNav compact={!isWide} />
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View pointerEvents="none" style={styles.marketPattern}>
+        {marketCandles.map((candle, index) => (
+          <View
+            key={`${candle.left}-${candle.top}`}
+            style={[
+              styles.candle,
+              {
+                height: candle.wick,
+                left: candle.left,
+                top: candle.top,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.candleBody,
+                index % 2 === 0 ? styles.candleBodyCyan : styles.candleBodyGreen,
+                {
+                  height: candle.body,
+                  marginTop: candle.bodyTop,
+                },
+              ]}
+            />
+          </View>
+        ))}
+      </View>
       {scroll ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic">{content}</ScrollView>
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          onScroll={onScroll}
+          ref={scrollRef}
+          refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.cyan} /> : undefined}
+          scrollEventThrottle={17}
+        >
+          {content}
+        </ScrollView>
       ) : (
         content
       )}
+      {floatingAction ? <View style={styles.floatingAction}>{floatingAction}</View> : null}
     </SafeAreaView>
   );
 }
+
+const marketCandles = [
+  { left: '7%', top: 131, wick: 77, body: 31, bodyTop: 23 },
+  { left: '19%', top: 97, wick: 111, body: 43, bodyTop: 37 },
+  { left: '31%', top: 147, wick: 87, body: 27, bodyTop: 29 },
+  { left: '43%', top: 83, wick: 127, body: 57, bodyTop: 35 },
+  { left: '55%', top: 119, wick: 97, body: 39, bodyTop: 31 },
+  { left: '67%', top: 73, wick: 137, body: 51, bodyTop: 47 },
+  { left: '79%', top: 137, wick: 83, body: 35, bodyTop: 21 },
+  { left: '91%', top: 101, wick: 117, body: 45, bodyTop: 39 },
+] as const;
 
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
@@ -74,57 +163,131 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.xl,
     position: 'relative',
+    zIndex: 1,
   },
-  gridOne: {
-    backgroundColor: colors.glow,
-    borderRadius: 139,
-    height: 219,
+  menuButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 11,
+    borderWidth: 1,
+    height: 39,
+    justifyContent: 'center',
+    left: 17,
     position: 'absolute',
-    right: -110,
-    top: 52,
-    width: 219,
+    top: 17,
+    width: 39,
+    zIndex: 3,
   },
-  gridTwo: {
-    backgroundColor: colors.grid,
-    borderRadius: 181,
-    bottom: 160,
-    height: 301,
-    left: -180,
-    position: 'absolute',
-    width: 301,
-  },
-  header: {
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  headerTop: {
+  topRightActions: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 9,
+    position: 'absolute',
+    right: 17,
+    top: 17,
+    zIndex: 4,
+  },
+  marketPattern: {
+    height: 251,
+    left: 0,
+    opacity: 0.17,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 73,
+    zIndex: 0,
+  },
+  candle: {
+    alignItems: 'center',
+    backgroundColor: colors.grid,
+    borderRadius: 999,
+    position: 'absolute',
+    width: 3,
+  },
+  candleBody: {
+    borderRadius: 7,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.37,
+    shadowRadius: 11,
+    width: 15,
+  },
+  candleBodyCyan: {
+    backgroundColor: colors.cyan,
+    shadowColor: colors.cyan,
+  },
+  candleBodyGreen: {
+    backgroundColor: colors.success,
+    shadowColor: colors.success,
+  },
+  header: {
+    gap: 9,
+  },
+  headerWithMenu: {
+    paddingTop: 37,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 11,
   },
   signalBar: {
     borderRadius: 999,
     height: 3,
-    width: 73,
-  },
-  themeButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 9,
-    borderWidth: 1,
-    height: 33,
-    justifyContent: 'center',
-    width: 33,
+    width: 57,
   },
   title: {
     color: colors.text,
-    fontSize: typography.h1,
+    fontSize: 19,
     fontWeight: '800',
   },
   subtitle: {
     color: colors.textMuted,
     fontSize: typography.body,
     lineHeight: 23,
+  },
+  floatingAction: {
+    bottom: 91,
+    position: 'absolute',
+    right: 17,
+    zIndex: 7,
+  },
+  drawerBackdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.57)',
+    flex: 1,
+  },
+  drawer: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRightWidth: 1,
+    flex: 1,
+    maxWidth: 337,
+    paddingBottom: 27,
+    paddingHorizontal: 15,
+    paddingTop: 57,
+  },
+  drawerWide: {
+    maxWidth: 381,
+  },
+  drawerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  drawerTitle: {
+    color: colors.text,
+    fontSize: 27,
+    fontWeight: '900',
+  },
+  drawerClose: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 11,
+    borderWidth: 1,
+    height: 39,
+    justifyContent: 'center',
+    width: 39,
   },
 });

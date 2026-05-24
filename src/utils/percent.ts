@@ -18,3 +18,25 @@ export const formatPercent = (value: unknown) => {
   return `${amount.toFixed(2)}%`;
 };
 
+export const formatSignedPercent = (value: unknown) => {
+  const amount = typeof value === 'number' ? value : Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return 'Unavailable';
+  }
+
+  const prefix = amount > 0 ? '+' : '';
+
+  return `${prefix}${amount.toFixed(2)}%`;
+};
+
+export const formatRatioPercent = (value: unknown) => {
+  const amount = typeof value === 'number' ? value : Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return 'Unavailable';
+  }
+
+  return formatSignedPercent(amount * 100);
+};
+

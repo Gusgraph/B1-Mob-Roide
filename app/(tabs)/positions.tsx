@@ -8,23 +8,22 @@
 // - https://Gusgraph.com
 // - File Path: positions.tsx - app/(tabs)/positions.tsx
 // =====================================================
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { ChartCandlestick, XCircle } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowUp, ChartCandlestick, XCircle } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
 import { AppShell } from '@/components/AppShell';
-import { Bismel1Card } from '@/components/Bismel1Card';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import { formatMoney } from '@/utils/money';
+import { formatMoney, formatSignedMoney } from '@/utils/money';
+import { formatRatioPercent } from '@/utils/percent';
 import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 
 export default function PositionsScreen() {
@@ -33,6 +32,8 @@ export default function PositionsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBackTop, setShowBackTop] = useState(false);
+  const scrollRef = useRef<ScrollView | null>(null);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -79,9 +80,24 @@ export default function PositionsScreen() {
       setIsClosing(false);
     }
   };
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setShowBackTop(false);
+  };
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextVisible = event.nativeEvent.contentOffset.y > 271;
+
+    setShowBackTop((currentVisible) => currentVisible === nextVisible ? currentVisible : nextVisible);
+  };
+  const backTopControl = !isLoading && !error && positions.length > 3 && showBackTop ? (
+    <Pressable accessibilityLabel="Back to top" accessibilityRole="button" onPress={scrollToTop} style={styles.backTopButton}>
+      <ArrowUp color={colors.cyan} size={15} />
+      <Text style={styles.backTopText}>Top</Text>
+    </Pressable>
+  ) : null;
 
   return (
-    <AppShell title="Positions" subtitle="Open positions returned by the mobile API.">
+    <AppShell floatingAction={backTopControl} onScroll={handleScroll} scrollRef={scrollRef} title="Positions" showAccountNav>
       {isLoading ? <LoadingState label="Loading positions" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && positions.length === 0 ? <EmptyState message="No open positions returned." /> : null}
@@ -89,25 +105,61 @@ export default function PositionsScreen() {
         const symbol = firstString(position, ['symbol'], 'Position');
         const actions = asRecord(position.actions);
         const actionAllowed = Boolean(
-          position.manual_close_allowed || position.can_manual_close || actions.manual_close,
+          position.action_allowed_manual_close || position.manual_close_allowed || position.can_manual_close || actions.manual_close,
         );
+        const pnl = firstNumber(position, ['unrealized_pl', 'unrealized_pnl']);
+        const pnlTone = pnl === undefined ? 'default' : pnl < 0 ? 'danger' : pnl > 0 ? 'success' : 'default';
+        const isPositive = pnlTone === 'success';
+        const direction = firstString(position, ['side', 'direction'], 'Long');
+        const directionTone = direction.toLowerCase().includes('short') ? 'danger' : 'success';
 
         return (
-          <Bismel1Card key={String(position.id || symbol || index)}>
-            <ChartCandlestick color={colors.accent} size={19} />
-            <Text style={styles.symbol}>{symbol}</Text>
-            <Text style={styles.text}>Qty: {firstString(position, ['qty', 'quantity'])}</Text>
-            <Text style={styles.text}>Average Entry: {formatMoney(firstNumber(position, ['average_entry', 'avg_entry_price']))}</Text>
-            <Text style={styles.text}>Current Price: {formatMoney(firstNumber(position, ['current_price', 'market_price']))}</Text>
-            <Text style={styles.text}>Market Value: {formatMoney(firstNumber(position, ['market_value']))}</Text>
-            <Text style={styles.text}>Unrealized P/L: {formatMoney(firstNumber(position, ['unrealized_pl', 'unrealized_pnl']))}</Text>
+          <View
+            key={String(position.id || symbol || index)}
+            style={[styles.positionCard, index % 2 === 0 ? styles.cardCyan : styles.cardGreen]}
+          >
+            <Text style={[styles.attachedPnl, isPositive ? styles.attachedPnlPositive : pnlTone === 'danger' ? styles.attachedPnlNegative : null]}>
+              {formatSignedMoney(pnl)}
+            </Text>
+            <View style={styles.cardHeader}>
+              <View style={[styles.neonLine, index % 2 === 0 ? styles.neonLineCyan : styles.neonLineGreen]} />
+              <ChartCandlestick color={index % 2 === 0 ? colors.cyan : colors.success} size={19} />
+              <View style={styles.symbolCopy}>
+                <Text style={styles.symbol}>
+                  {symbol}{' '}
+                  <Text style={directionTone === 'success' ? styles.success : styles.danger}>{direction}</Text>
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.grid}>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridCell}>{firstString(position, ['qty', 'quantity'])} shares</Text>
+                <Text style={[styles.gridCell, styles.gridCellRight]}>Value: {formatMoney(firstNumber(position, ['market_value']))}</Text>
+              </View>
+
+              <View style={styles.gridRow}>
+                <Text style={styles.gridCell}>Price: {formatMoney(firstNumber(position, ['current_price', 'market_price']))}</Text>
+                <Text style={[styles.gridCell, styles.gridCellRight]}>Entry: {formatMoney(firstNumber(position, ['avg_entry', 'average_entry', 'avg_entry_price']))}</Text>
+              </View>
+
+              <View style={[styles.gridRow, styles.gridRowSingle, actionAllowed ? null : styles.gridRowLast]}>
+                <Text style={styles.gridCell}>
+                  <Text>Unrealized P/L: </Text>
+                  <Text style={pnlTone === 'success' ? styles.success : pnlTone === 'danger' ? styles.danger : styles.gridText}>
+                    {formatSignedMoney(pnl)} ({formatRatioPercent(firstNumber(position, ['unrealized_pl_percent', 'unrealized_pnl_percent']))})
+                  </Text>
+                </Text>
+              </View>
+            </View>
+
             {actionAllowed ? (
               <Pressable style={styles.closeButton} onPress={() => setSelected(position)}>
                 <XCircle color={colors.white} size={15} />
-                <Text style={styles.closeText}>Manual Close</Text>
+                <Text style={styles.closeText}>Close Position</Text>
               </Pressable>
             ) : null}
-          </Bismel1Card>
+          </View>
         );
       })}
       <ConfirmSheet
@@ -124,28 +176,157 @@ export default function PositionsScreen() {
 }
 
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  positionCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.cyan,
+    borderRadius: 9,
+    borderWidth: 2,
+    gap: 11,
+    overflow: 'hidden',
+    paddingBottom: 15,
+    paddingHorizontal: 15,
+    paddingTop: 21,
+    position: 'relative',
+    shadowColor: colors.cyan,
+    shadowOffset: { width: 0, height: 11 },
+    shadowOpacity: 0.17,
+    shadowRadius: 19,
+  },
+  cardCyan: {
+    borderColor: colors.cyan,
+    shadowColor: colors.cyan,
+  },
+  cardGreen: {
+    borderColor: colors.success,
+    shadowColor: colors.success,
+  },
+  attachedPnl: {
+    backgroundColor: colors.accentMuted,
+    borderBottomLeftRadius: 7,
+    borderColor: colors.border,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+    borderWidth: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 2,
+  },
+  attachedPnlPositive: {
+    color: colors.success,
+  },
+  attachedPnlNegative: {
+    color: colors.danger,
+  },
   symbol: {
     color: colors.text,
     fontSize: typography.h2,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   text: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: 23,
+    fontSize: typography.small,
+    lineHeight: 19,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+  },
+  neonLine: {
+    borderRadius: 999,
+    height: 3,
+    width: 43,
+  },
+  neonLineCyan: {
+    backgroundColor: colors.cyan,
+  },
+  neonLineGreen: {
+    backgroundColor: colors.success,
+  },
+  symbolCopy: {
+    flex: 1,
+  },
+  grid: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+  },
+  gridRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 11,
+    paddingVertical: 9,
+  },
+  gridRowLast: {
+    borderBottomWidth: 0,
+  },
+  gridRowSingle: {
+    justifyContent: 'flex-start',
+  },
+  gridCell: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
+  gridCellRight: {
+    textAlign: 'right',
+  },
+  gridText: {
+    color: colors.text,
+  },
+  success: {
+    color: colors.success,
+  },
+  danger: {
+    color: colors.danger,
   },
   closeButton: {
     alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderRadius: 9,
+    backgroundColor: colors.dangerMuted,
+    alignSelf: 'flex-end',
+    borderColor: colors.danger,
+    borderWidth: 1,
+    borderRadius: 999,
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 5,
     justifyContent: 'center',
-    marginTop: spacing.sm,
-    padding: spacing.md,
+    marginTop: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
   closeText: {
-    color: colors.white,
-    fontWeight: '700',
+    color: colors.danger,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  backTopButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: 19,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    shadowColor: colors.cyan,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.31,
+    shadowRadius: 15,
+  },
+  backTopText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 });

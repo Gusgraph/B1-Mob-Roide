@@ -9,8 +9,8 @@
 // - File Path: more.tsx - app/(tabs)/more.tsx
 // =====================================================
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BadgeDollarSign, Bot, Building2, ChartNoAxesCombined, ChevronRight, Headset, LogOut, Package, ReceiptText, Settings, UserRound } from 'lucide-react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BadgeDollarSign, Bot, ChevronRight, CircleHelp, LogOut, Settings, UserRound } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
@@ -19,19 +19,15 @@ import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 const menuItems = [
-  { label: 'Products', href: '/more/products', icon: Package },
-  { label: 'Broker Accounts', href: '/more/brokers', icon: Building2 },
-  { label: 'Orders', href: '/more/orders', icon: ReceiptText },
-  { label: 'Performance', href: '/more/performance', icon: ChartNoAxesCombined },
   { label: 'Billing', href: '/more/billing', icon: BadgeDollarSign },
-  { label: 'Support', href: '/more/support', icon: Headset },
+  { label: 'Help', href: 'https://bismel1.com/customer/help', icon: CircleHelp, external: true },
   { label: 'Profile', href: '/more/profile', icon: UserRound },
   { label: 'Settings', href: '/more/settings', icon: Settings },
 ] as const;
 
 export default function MoreScreen() {
   const { logout, user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark, setThemeMode } = useTheme();
   const styles = makeStyles(colors);
   const affiliateApproved = Boolean(user?.affiliate_approved || user?.affiliateApproved);
   const visibleItems = affiliateApproved
@@ -39,19 +35,42 @@ export default function MoreScreen() {
     : menuItems;
 
   return (
-    <AppShell title="More" subtitle="Account, billing, support, and approved program areas.">
+    <AppShell title="More" showAccountNav>
       <View style={styles.menu}>
-        {visibleItems.map((item) => (
-          <Link key={item.href} href={item.href as never} asChild>
-            <Pressable style={styles.item}>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: !isDark }}
+          onPress={() => setThemeMode(isDark ? 'light' : 'dark')}
+          style={styles.themeToggle}
+        >
+          <Text style={styles.itemText}>Light Mode</Text>
+          <View style={[styles.switchTrack, !isDark && styles.switchTrackActive]}>
+            <View style={[styles.switchThumb, !isDark && styles.switchThumbActive]} />
+          </View>
+        </Pressable>
+        {visibleItems.map((item) => {
+          const external = 'external' in item && item.external === true;
+          const row = (
+            <Pressable
+              onPress={() => external ? Linking.openURL(item.href) : undefined}
+              style={styles.item}
+            >
               <View style={styles.itemLeft}>
                 <item.icon color={colors.accent} size={19} />
                 <Text style={styles.itemText}>{item.label}</Text>
               </View>
               <ChevronRight color={colors.textMuted} size={17} />
             </Pressable>
-          </Link>
-        ))}
+          );
+
+          return external ? (
+            <View key={item.href}>{row}</View>
+          ) : (
+            <Link key={item.href} href={item.href as never} asChild>
+              {row}
+            </Link>
+          );
+        })}
         <Pressable style={styles.logout} onPress={logout}>
           <LogOut color={colors.danger} size={19} />
           <Text style={styles.logoutText}>Logout</Text>
@@ -75,6 +94,48 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.lg,
   },
+  themeToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.borderStrong,
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 5,
+    paddingLeft: 11,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.17,
+    shadowRadius: 11,
+  },
+  switchTrack: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    height: 29,
+    paddingHorizontal: 3,
+    width: 57,
+  },
+  switchTrackActive: {
+    backgroundColor: colors.accentMuted,
+    borderColor: colors.success,
+    shadowColor: colors.success,
+    shadowOpacity: 0.29,
+    shadowRadius: 11,
+  },
+  switchThumb: {
+    backgroundColor: colors.textMuted,
+    borderRadius: 999,
+    height: 21,
+    width: 21,
+  },
+  switchThumbActive: {
+    backgroundColor: colors.success,
+    transform: [{ translateX: 27 }],
+  },
   itemLeft: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -82,7 +143,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   itemText: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: 15,
     fontWeight: '700',
   },
   logout: {

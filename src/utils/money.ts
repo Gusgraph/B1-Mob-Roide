@@ -22,3 +22,23 @@ export const formatMoney = (value: unknown, currency = 'USD') => {
   }).format(amount);
 };
 
+export const formatSignedMoney = (value: unknown, currency = 'USD') => {
+  const amount = typeof value === 'number' ? value : Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return 'Unavailable';
+  }
+
+  const formatted = formatMoney(Math.abs(amount), currency);
+
+  if (amount > 0) {
+    return `+${formatted}`;
+  }
+
+  if (amount < 0) {
+    return `-${formatted}`;
+  }
+
+  return formatted;
+};
+

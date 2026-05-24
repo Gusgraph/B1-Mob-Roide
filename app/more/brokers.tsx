@@ -14,9 +14,11 @@ import { Building2, Link as LinkIcon, Unlink } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
+import { useAccounts } from '@/accounts/useAccounts';
 import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
+import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
@@ -25,17 +27,24 @@ import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import { asArray, asRecord, firstString } from '@/utils/records';
+import { formatDateTime } from '@/utils/dates';
+import { formatMoney } from '@/utils/money';
+import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
+
+const accountKey = (account: Record<string, unknown>) =>
+  firstString(account, ['broker_account_ref', 'account_ref', 'uuid', 'id', 'broker_account_id'], 'broker-account');
 
 export default function BrokerAccountsScreen() {
   const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [accounts, setAccounts] = useState<Record<string, unknown>[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
   const [disconnectTarget, setDisconnectTarget] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { refreshAccounts } = useAccounts();
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -43,8 +52,16 @@ export default function BrokerAccountsScreen() {
     setError(null);
     try {
       const brokerResponse = asRecord(await api.get<unknown>(endpoints.brokerAccounts));
+      const nextAccounts = asArray(brokerResponse.accounts || brokerResponse.broker_accounts || brokerResponse).map(asRecord);
       setResponse(brokerResponse);
-      setAccounts(asArray(brokerResponse.accounts || brokerResponse.broker_accounts || brokerResponse).map(asRecord));
+      setAccounts(nextAccounts);
+      setSelectedBrokerId((current) => {
+        if (current && nextAccounts.some((account) => accountKey(account) === current)) {
+          return current;
+        }
+
+        return nextAccounts[0] ? accountKey(nextAccounts[0]) : null;
+      });
     } catch (loadError) {
       setError(customerSafeMessage(loadError));
     } finally {
@@ -56,7 +73,8 @@ export default function BrokerAccountsScreen() {
     load();
   }, []);
 
-  const connectAllowed = Boolean(response?.can_connect_alpaca || asRecord(response?.actions).connect_alpaca);
+  const connectAction = asRecord(asRecord(response?.actions).connect_alpaca);
+  const connectAllowed = response?.can_connect_alpaca === true || connectAction.enabled === true;
   const canSubmitConnect = connectAllowed && apiKey.trim() && apiSecret.trim() && !isSubmitting;
 
   const connect = async () => {
@@ -70,6 +88,7 @@ export default function BrokerAccountsScreen() {
       setApiKey('');
       setApiSecret('');
       await load();
+      await refreshAccounts();
     } catch (connectError) {
       setError(customerSafeMessage(connectError));
       setApiSecret('');
@@ -79,7 +98,7 @@ export default function BrokerAccountsScreen() {
   };
 
   const disconnect = async () => {
-    const id = disconnectTarget?.id || disconnectTarget?.broker_account_id;
+    const id = disconnectTarget?.id || disconnectTarget?.broker_account_id || disconnectTarget?.broker_account_ref;
     if (!id) {
       return;
     }
@@ -90,6 +109,7 @@ export default function BrokerAccountsScreen() {
       await api.post(endpoints.disconnectBroker(String(id)), { confirm: true });
       setDisconnectTarget(null);
       await load();
+      await refreshAccounts();
     } catch (disconnectError) {
       setError(customerSafeMessage(disconnectError));
     } finally {
@@ -97,20 +117,81 @@ export default function BrokerAccountsScreen() {
     }
   };
 
+  const disconnectBlocked = (account: Record<string, unknown> | null) => {
+    const disconnectAction = asRecord(asRecord(account?.actions).disconnect);
+    const blockers = asRecord(account?.disconnect_blockers);
+    const openPositions = firstNumber(blockers, ['open_positions_count']);
+    const pendingOrders = firstNumber(blockers, ['pending_orders_count']);
+
+    return (
+      account?.can_disconnect === false ||
+      disconnectAction.enabled === false ||
+      Boolean((openPositions && openPositions > 0) || (pendingOrders && pendingOrders > 0))
+    );
+  };
+
+  const disconnectWarning = (account: Record<string, unknown> | null) => {
+    if (disconnectBlocked(account)) {
+      return 'Open positions or pending orders stay open. Review positions and orders before disconnecting this account.';
+    }
+
+    return firstString(
+      asRecord(account),
+      ['disconnect_warning', 'warning', 'confirmation_message'],
+      'Disconnect this broker account through Bismel1. Automation using this account may stop.',
+    );
+  };
+
   return (
     <AppShell title="Broker Accounts">
       {isLoading ? <LoadingState label="Loading broker accounts" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && accounts.length === 0 ? <EmptyState message="No broker accounts returned." /> : null}
+      {accounts.length ? (
+        <Bismel1Card>
+          <Text style={styles.title}>Broker List</Text>
+          <View style={styles.selectorGrid}>
+            {accounts.map((account) => {
+              const key = accountKey(account);
+              const active = selectedBrokerId === key;
+              return (
+                <Pressable key={key} onPress={() => setSelectedBrokerId(key)} style={[styles.selectorItem, active && styles.activeSelectorItem]}>
+                  <Text numberOfLines={1} style={[styles.selectorTitle, active && styles.activeSelectorTitle]}>
+                    {firstString(account, ['account_label', 'name', 'broker', 'provider'], 'Broker Account')}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.selectorMeta}>{firstString(account, ['broker', 'environment'], 'Broker')}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Bismel1Card>
+      ) : null}
       {accounts.map((account, index) => {
-        const canDisconnect = Boolean(account.can_disconnect || asRecord(account.actions).disconnect);
+        if (selectedBrokerId && accountKey(account) !== selectedBrokerId) {
+          return null;
+        }
+
+        const disconnectAction = asRecord(asRecord(account.actions).disconnect);
+        const hasDisconnectAction = Boolean(account.actions || account.can_disconnect !== undefined || account.broker_account_ref || account.id || account.broker_account_id);
+        const canDisconnect = !disconnectBlocked(account) && (account.can_disconnect === true || disconnectAction.enabled === true || hasDisconnectAction);
         return (
-          <Bismel1Card key={String(account.id || account.broker_account_id || index)}>
+          <Bismel1Card key={String(account.id || account.broker_account_id || account.broker_account_ref || index)}>
             <Building2 color={colors.accent} size={19} />
-            <Text style={styles.title}>{firstString(account, ['name', 'broker', 'provider'], 'Broker Account')}</Text>
-            <StatusBadge label={firstString(account, ['status', 'connection_status'], 'Status unavailable')} />
-            {canDisconnect ? (
-              <Pressable style={styles.dangerButton} onPress={() => setDisconnectTarget(account)}>
+            <Text style={styles.title}>{firstString(account, ['account_label', 'name', 'broker', 'provider'], 'Broker Account')}</Text>
+            <StatusBadge label={account.connected === true ? 'Connected' : firstString(account, ['status', 'connection_status'], 'Status unavailable')} status={account.connected === true ? 'success' : 'warning'} />
+            <DataRow label="Broker" value={firstString(account, ['broker'], 'Unavailable')} />
+            <DataRow label="Mode" value={firstString(account, ['environment'], 'Unavailable')} />
+            <DataRow label="Equity" value={formatMoney(firstNumber(account, ['equity']))} />
+            <DataRow label="Buying Power" value={formatMoney(firstNumber(account, ['buying_power']))} />
+            <DataRow label="Last Sync" value={formatDateTime(account.last_sync)} />
+            <DataRow label="Automation" value={account.automation_enabled === true ? 'Enabled' : 'Off'} tone={account.automation_enabled === true ? 'success' : 'warning'} />
+            {hasDisconnectAction ? (
+              <Pressable
+                hitSlop={11}
+                onPress={() => setDisconnectTarget(account)}
+                onPressIn={() => setDisconnectTarget(account)}
+                style={[styles.dangerButton, !canDisconnect && styles.warningButton]}
+              >
                 <Unlink color={colors.white} size={15} />
                 <Text style={styles.buttonText}>Disconnect</Text>
               </Pressable>
@@ -122,6 +203,7 @@ export default function BrokerAccountsScreen() {
         <Bismel1Card>
           <LinkIcon color={colors.success} size={19} />
           <Text style={styles.title}>Connect Alpaca</Text>
+          {connectAction.next_slot_number ? <DataRow label="Next Account" value={`Account ${String(connectAction.next_slot_number)}`} /> : null}
           <View style={styles.field}>
             <Text style={styles.label}>API Key</Text>
             <TextInput
@@ -152,15 +234,11 @@ export default function BrokerAccountsScreen() {
         </Bismel1Card>
       ) : null}
       <ConfirmSheet
-        confirmLabel="Disconnect"
+        confirmLabel={disconnectBlocked(disconnectTarget) ? 'OK' : 'Disconnect'}
         isLoading={isSubmitting}
-        message={firstString(
-          asRecord(disconnectTarget),
-          ['disconnect_warning', 'warning', 'confirmation_message'],
-          'Disconnect this broker account through Bismel1. Automation using this account may stop.',
-        )}
+        message={disconnectWarning(disconnectTarget)}
         onCancel={() => setDisconnectTarget(null)}
-        onConfirm={disconnect}
+        onConfirm={disconnectBlocked(disconnectTarget) ? () => setDisconnectTarget(null) : disconnect}
         title="Disconnect Broker"
         visible={Boolean(disconnectTarget)}
       />
@@ -191,6 +269,40 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: typography.body,
     padding: spacing.md,
   },
+  selectorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  selectorItem: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 11,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: 137,
+    padding: 11,
+  },
+  activeSelectorItem: {
+    borderColor: colors.cyan,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.27,
+    shadowRadius: 11,
+  },
+  selectorTitle: {
+    color: colors.text,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  activeSelectorTitle: {
+    color: colors.cyan,
+  },
+  selectorMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 5,
+  },
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
@@ -209,6 +321,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.sm,
     padding: spacing.md,
+  },
+  warningButton: {
+    backgroundColor: colors.warning,
   },
   disabled: {
     opacity: 0.5,

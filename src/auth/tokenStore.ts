@@ -9,17 +9,32 @@
 // - File Path: tokenStore.ts - src/auth/tokenStore.ts
 // =====================================================
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const ACCESS_TOKEN_KEY = 'bismel1.accessToken';
 
 export const tokenStore = {
   getAccessToken() {
+    if (Platform.OS === 'web') {
+      return Promise.resolve(globalThis.localStorage?.getItem(ACCESS_TOKEN_KEY) || null);
+    }
+
     return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
   },
   setAccessToken(token: string) {
+    if (Platform.OS === 'web') {
+      globalThis.localStorage?.setItem(ACCESS_TOKEN_KEY, token);
+      return Promise.resolve();
+    }
+
     return SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
   },
   clear() {
+    if (Platform.OS === 'web') {
+      globalThis.localStorage?.removeItem(ACCESS_TOKEN_KEY);
+      return Promise.resolve();
+    }
+
     return SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
   },
 };

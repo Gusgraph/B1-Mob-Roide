@@ -9,7 +9,7 @@
 // - File Path: _layout.tsx - app/(tabs)/_layout.tsx
 // =====================================================
 import { Redirect, Tabs } from 'expo-router';
-import { Activity, Bot, ChartCandlestick, CircleUserRound, LayoutDashboard } from 'lucide-react-native';
+import { Activity, Bot, ChartCandlestick, CircleUserRound, Gauge } from 'lucide-react-native';
 import { LoadingState } from '@/components/LoadingState';
 import { useAuth } from '@/auth/useAuth';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -17,6 +17,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const { colors } = useTheme();
+  const tabBarBackground = colors.background === '#02060B' ? 'rgba(2, 6, 11, 0.91)' : 'rgba(234, 247, 255, 0.91)';
 
   if (isLoading) {
     return <LoadingState label="Checking secure session" />;
@@ -32,38 +33,39 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: {
-          fontSize: 13,
-          fontWeight: '700',
+        tabBarItemStyle: {
+          transform: [{ translateY: -7 }],
         },
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: tabBarBackground,
           borderTopColor: colors.border,
-          height: 77,
-          paddingBottom: 11,
-          paddingTop: 7,
+          borderTopWidth: 1,
+          height: 73,
+          paddingBottom: 17,
+          paddingTop: 5,
         },
       }}
     >
       <Tabs.Screen
         name="dashboard"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }}
+        options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <Gauge color={color} size={21} /> }}
       />
       <Tabs.Screen
         name="automation"
-        options={{ title: 'Automation', tabBarIcon: ({ color, size }) => <Bot color={color} size={size} /> }}
+        options={{ title: 'Automation', tabBarIcon: ({ color }) => <Bot color={color} size={21} /> }}
       />
       <Tabs.Screen
         name="positions"
-        options={{ title: 'Positions', tabBarIcon: ({ color, size }) => <ChartCandlestick color={color} size={size} /> }}
+        options={{ title: 'Positions', tabBarIcon: ({ color }) => <ChartCandlestick color={color} size={21} /> }}
       />
       <Tabs.Screen
         name="activity"
-        options={{ title: 'Activity', tabBarIcon: ({ color, size }) => <Activity color={color} size={size} /> }}
+        options={{ title: 'Activity', tabBarIcon: ({ color }) => <Activity color={color} size={21} /> }}
       />
       <Tabs.Screen
         name="more"
-        options={{ title: 'More', tabBarIcon: ({ color, size }) => <CircleUserRound color={color} size={size} /> }}
+        options={{ title: 'More', tabBarIcon: ({ color }) => <CircleUserRound color={color} size={21} /> }}
       />
     </Tabs>
   );

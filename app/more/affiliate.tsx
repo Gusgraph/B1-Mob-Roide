@@ -58,7 +58,7 @@ export default function AffiliateScreen() {
   }
 
   return (
-    <AppShell title="Affiliate">
+    <AppShell title="Affiliate" showAccountNav>
       {isLoading ? <LoadingState label="Loading affiliate summary" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {summary ? (

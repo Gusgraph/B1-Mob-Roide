@@ -28,13 +28,13 @@ export const registerUnauthorizedHandler = (handler: () => Promise<void> | void)
 };
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
   retrying?: boolean;
 };
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 27000;
 
 const fetchWithTimeout = async (url: string, init: RequestInit) => {
   const controller = new AbortController();
@@ -65,7 +65,7 @@ const parseEnvelope = async <T>(response: Response): Promise<T> => {
   } catch {
     if (response.status === 404) {
       throw new ApiError(
-        'The mobile API route is not available on the server yet.',
+        'Connection failed.',
         'mobile_route_not_found',
         response.status,
       );
@@ -85,7 +85,7 @@ const parseEnvelope = async <T>(response: Response): Promise<T> => {
 
     if (response.status === 404 && message.includes('route')) {
       throw new ApiError(
-        'The mobile API route is not available on the server yet.',
+        'Connection failed.',
         'mobile_route_not_found',
         response.status,
       );
@@ -164,7 +164,7 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
     });
   } catch {
     throw new ApiError(
-      'The mobile API could not be reached from this device.',
+      'Connection failed.',
       'network_unavailable',
     );
   }
@@ -192,5 +192,7 @@ export const api = {
   get: <T>(path: string, auth = true) => apiRequest<T>(path, { method: 'GET', auth }),
   post: <T>(path: string, body?: unknown, auth = true) =>
     apiRequest<T>(path, { method: 'POST', body, auth }),
+  patch: <T>(path: string, body?: unknown, auth = true) =>
+    apiRequest<T>(path, { method: 'PATCH', body, auth }),
   delete: <T>(path: string, auth = true) => apiRequest<T>(path, { method: 'DELETE', auth }),
 };

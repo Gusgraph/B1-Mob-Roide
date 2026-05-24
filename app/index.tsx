@@ -9,15 +9,18 @@
 // - File Path: index.tsx - app/index.tsx
 // =====================================================
 import { Link, Redirect } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChartCandlestick, LockKeyhole, Sparkles } from 'lucide-react-native';
+import { openBrowserAsync, WebBrowserPresentationStyle } from 'expo-web-browser';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LockKeyhole, Sparkles } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { LoadingState } from '@/components/LoadingState';
+import { LivePerformancePreview } from '@/features/home/LivePerformancePreview';
 import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+const PLANS_URL = 'https://www.bismel1.com/plans';
 
 export default function FrontPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -33,35 +36,45 @@ export default function FrontPage() {
   }
 
   return (
-    <AppShell scroll={false}>
+    <AppShell>
       <View style={styles.container}>
-        <View style={styles.copy}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <ChartCandlestick color={colors.cyan} size={23} />
+        <View style={styles.heroBlock}>
+          <View style={styles.copy}>
+            <View style={styles.brandRow}>
+              <Image
+                source={require('@/assets/images/android-icon-foreground.png')}
+                style={styles.logo}
+              />
+              <Text style={styles.title}>
+                Bismel<Text style={styles.titleOne}>1</Text>
+              </Text>
             </View>
-            <Text style={styles.kicker}>Neon Trading Terminal</Text>
+            <Text style={styles.subtitle}>Automated AI Trading App</Text>
           </View>
-          <Text style={styles.title}>Bismel1</Text>
-          <Text style={styles.subtitle}>
-            Trading automation, account visibility, and activity review in one mobile app.
-          </Text>
-        </View>
 
-        <View style={styles.actions}>
-          <Link href={'/(auth)/login' as never} asChild>
-            <Pressable style={styles.primaryButton}>
-              <LockKeyhole color={colors.white} size={17} />
-              <Text style={styles.primaryText}>Login</Text>
-            </Pressable>
-          </Link>
-          <Link href={'/(auth)/plans' as never} asChild>
-            <Pressable style={styles.secondaryButton}>
+          <View style={styles.actions}>
+            <Link href={'/(auth)/login' as never} asChild>
+              <Pressable style={styles.primaryButton}>
+                <LockKeyhole color={colors.white} size={17} />
+                <Text style={styles.primaryText}>Login</Text>
+              </Pressable>
+            </Link>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => {
+                void openBrowserAsync(PLANS_URL, {
+                  presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
+                });
+              }}
+              style={styles.secondaryButton}
+            >
               <Sparkles color={colors.accent} size={17} />
               <Text style={styles.secondaryText}>View Plans</Text>
             </Pressable>
-          </Link>
+          </View>
         </View>
+
+        <LivePerformancePreview />
 
         <Text style={styles.disclosure}>
           Trading involves risk. Bismel1 is software and does not guarantee trading results.
@@ -74,38 +87,33 @@ export default function FrontPage() {
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xxl,
+    gap: 19,
+    paddingVertical: 27,
+  },
+  heroBlock: {
+    gap: 19,
   },
   copy: {
-    gap: spacing.lg,
-    marginTop: spacing.xxl,
+    gap: 15,
+    marginTop: 11,
   },
   brandRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: 11,
   },
-  brandMark: {
-    alignItems: 'center',
-    backgroundColor: colors.accentMuted,
-    borderColor: colors.borderStrong,
-    borderRadius: 9,
-    borderWidth: 1,
-    height: 43,
-    justifyContent: 'center',
-    width: 43,
-  },
-  kicker: {
-    color: colors.accent,
-    fontSize: typography.label,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+  logo: {
+    borderRadius: 15,
+    height: 51,
+    width: 51,
   },
   title: {
     color: colors.text,
-    fontSize: 43,
+    fontSize: 39,
     fontWeight: '800',
+  },
+  titleOne: {
+    color: colors.success,
   },
   subtitle: {
     color: colors.textMuted,
@@ -113,27 +121,34 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     lineHeight: 27,
   },
   actions: {
-    gap: spacing.md,
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 11,
   },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.accent,
+    borderColor: colors.cyan,
     borderRadius: 9,
+    borderWidth: 2,
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 7,
     justifyContent: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: 19,
+    paddingVertical: 11,
   },
   secondaryButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.magenta,
     borderRadius: 9,
-    borderWidth: 1,
+    borderWidth: 2,
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 7,
     justifyContent: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: 19,
+    paddingVertical: 11,
   },
   primaryText: {
     color: colors.white,
@@ -147,7 +162,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   disclosure: {
     color: colors.textMuted,
-    fontSize: typography.small,
-    lineHeight: 19,
+    fontSize: 9,
+    lineHeight: 13,
+    opacity: 0.59,
   },
 });

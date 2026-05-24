@@ -9,7 +9,6 @@
 // - File Path: ThemeProvider.tsx - src/theme/ThemeProvider.tsx
 // =====================================================
 import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
 import { ThemeColors, ThemeMode, themes } from '@/theme/colors';
 
 type ThemeContextValue = {
@@ -23,10 +22,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const systemScheme = useColorScheme();
-  const [selectedMode, setSelectedMode] = useState<ThemeMode>(
-    systemScheme === 'light' ? 'light' : 'dark',
-  );
+  const [selectedMode, setSelectedMode] = useState<ThemeMode>('dark');
 
   const toggleTheme = useCallback(() => {
     setSelectedMode((current) => (current === 'dark' ? 'light' : 'dark'));

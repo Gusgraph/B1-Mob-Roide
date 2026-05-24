@@ -11,6 +11,7 @@
 export const endpoints = {
   appConfig: '/app-config',
   plans: '/plans',
+  homeLivePerformance: '/home/live-performance',
   auth: {
     login: '/auth/login',
     logout: '/auth/logout',
@@ -18,6 +19,9 @@ export const endpoints = {
     me: '/me',
   },
   dashboard: '/dashboard',
+  alertDismiss: (alertKey: string) => `/alerts/${encodeURIComponent(alertKey)}/dismiss`,
+  profileSettings: '/profile/settings',
+  profilePassword: '/profile/password',
   products: '/products',
   productOverview: (product: string | number) => `/products/${product}/overview`,
   accounts: '/accounts',
@@ -31,8 +35,12 @@ export const endpoints = {
     `/automation/${product}/${accountSlot}`,
   automationSymbols: (product: string | number, accountSlot: string | number) =>
     `/automation/${product}/${accountSlot}/symbols`,
+  automationSymbolSearch: (product: string | number, accountSlot: string | number, query: string) =>
+    `/automation/${product}/${accountSlot}/symbols/search?q=${encodeURIComponent(query)}`,
   automationSymbol: (product: string | number, accountSlot: string | number, symbol: string) =>
     `/automation/${product}/${accountSlot}/symbols/${encodeURIComponent(symbol)}`,
+  automationSymbolToggle: (product: string | number, accountSlot: string | number, symbol: string) =>
+    `/automation/${product}/${accountSlot}/symbols/${encodeURIComponent(symbol)}/toggle`,
   automationToggle: (product: string | number, accountSlot: string | number) =>
     `/automation/${product}/${accountSlot}/toggle`,
   positions: '/positions',

@@ -9,8 +9,8 @@
 // - File Path: login.tsx - app/(auth)/login.tsx
 // =====================================================
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { LogIn, Mail, Shield } from 'lucide-react-native';
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Eye, EyeOff, LogIn, Mail, Shield } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { ErrorState } from '@/components/ErrorState';
 import { useAuth } from '@/auth/useAuth';
@@ -23,6 +23,7 @@ export default function LoginScreen() {
   const { login, authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -30,7 +31,7 @@ export default function LoginScreen() {
   const submit = async () => {
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim().toLowerCase(), password.trim());
       setPassword('');
     } finally {
       setIsSubmitting(false);
@@ -40,7 +41,7 @@ export default function LoginScreen() {
   const disabled = isSubmitting || !email.trim() || !password;
 
   return (
-    <AppShell title="Login" subtitle="Access your Bismel1 mobile dashboard.">
+    <AppShell title="Login">
       <View style={styles.form}>
         <View style={styles.field}>
           <View style={styles.labelRow}>
@@ -50,6 +51,7 @@ export default function LoginScreen() {
           <TextInput
             autoCapitalize="none"
             autoComplete="email"
+            autoCorrect={false}
             keyboardType="email-address"
             onChangeText={setEmail}
             placeholder="email@example.com"
@@ -64,16 +66,33 @@ export default function LoginScreen() {
             <Shield color={colors.purple} size={15} />
             <Text style={styles.label}>Password</Text>
           </View>
-          <TextInput
-            autoCapitalize="none"
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            style={styles.input}
-            textContentType="password"
-            value={password}
-          />
+          <View style={styles.passwordBox}>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="current-password"
+              autoCorrect={false}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry={!passwordVisible}
+              spellCheck={false}
+              style={[styles.input, styles.passwordInput]}
+              textContentType="password"
+              value={password}
+            />
+            <Pressable
+              accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+              accessibilityRole="button"
+              onPress={() => setPasswordVisible((visible) => !visible)}
+              style={styles.eyeButton}
+            >
+              {passwordVisible ? (
+                <EyeOff color={colors.textMuted} size={17} />
+              ) : (
+                <Eye color={colors.textMuted} size={17} />
+              )}
+            </Pressable>
+          </View>
         </View>
         {authError ? <ErrorState message={authError} /> : null}
         <Pressable
@@ -85,6 +104,16 @@ export default function LoginScreen() {
           <LogIn color={colors.white} size={17} />
           <Text style={styles.buttonText}>{isSubmitting ? 'Signing in' : 'Login'}</Text>
         </Pressable>
+        <View style={styles.signupRow}>
+          <Text style={styles.signupText}>Dont Have Account?</Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => Linking.openURL('https://bismel1.com/')}
+            style={styles.signupLink}
+          >
+            <Text style={styles.signupLinkText}>Signup here</Text>
+          </Pressable>
+        </View>
       </View>
     </AppShell>
   );
@@ -116,6 +145,21 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: typography.body,
     padding: spacing.lg,
   },
+  passwordBox: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 53,
+  },
+  eyeButton: {
+    alignItems: 'center',
+    height: 43,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 7,
+    top: 7,
+    width: 43,
+  },
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
@@ -132,5 +176,28 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.white,
     fontSize: typography.body,
     fontWeight: '700',
+  },
+  signupRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    justifyContent: 'center',
+    paddingTop: 19,
+  },
+  signupText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  signupLink: {
+    borderBottomColor: colors.accent,
+    borderBottomWidth: 1,
+    paddingVertical: 3,
+  },
+  signupLinkText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

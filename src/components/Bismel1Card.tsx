@@ -22,7 +22,7 @@ export function Bismel1Card({ children, style }: PropsWithChildren<{ style?: Vie
   return (
     <View style={[styles.card, style]}>
       <LinearGradient
-        colors={isDark ? ['rgba(47,206,255,0.16)', 'rgba(168,85,247,0.06)', 'transparent'] : ['rgba(0,120,216,0.12)', 'rgba(124,58,237,0.06)', 'transparent']}
+        colors={isDark ? ['rgba(0,217,255,0.17)', 'rgba(38,242,159,0.07)', 'transparent'] : ['rgba(0,141,223,0.13)', 'rgba(0,185,137,0.07)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         pointerEvents="none"

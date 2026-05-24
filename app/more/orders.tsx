@@ -9,21 +9,24 @@
 // - File Path: orders.tsx - app/more/orders.tsx
 // =====================================================
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ReceiptText } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
 import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
+import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
+import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { formatDateTime } from '@/utils/dates';
-import { asArray, asRecord, firstString } from '@/utils/records';
+import { formatMoney } from '@/utils/money';
+import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 
 export default function OrdersScreen() {
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
@@ -48,16 +51,25 @@ export default function OrdersScreen() {
   }, []);
 
   return (
-    <AppShell title="Orders">
+    <AppShell title="Orders" showAccountNav>
       {isLoading ? <LoadingState label="Loading orders" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && orders.length === 0 ? <EmptyState message="No orders returned." /> : null}
       {orders.map((order, index) => (
         <Bismel1Card key={String(order.id || index)}>
-          <ReceiptText color={colors.accent} size={19} />
-          <Text style={styles.title}>{firstString(order, ['symbol', 'client_order_id', 'id'], 'Order')}</Text>
-          <Text style={styles.text}>{firstString(order, ['status', 'side', 'type'], '')}</Text>
-          <Text style={styles.text}>{formatDateTime(order.created_at || order.submitted_at)}</Text>
+          <View style={styles.cardHeader}>
+            <ReceiptText color={colors.accent} size={19} />
+            <View style={styles.copy}>
+              <Text style={styles.title}>{firstString(order, ['symbol', 'client_order_id', 'order_ref', 'id'], 'Order')}</Text>
+              <Text style={styles.text}>{firstString(order, ['safe_source_label'], 'Bismel1')}</Text>
+            </View>
+            <Text style={styles.status}>{firstString(order, ['status'], 'Status')}</Text>
+          </View>
+          <DataRow label="Side" value={firstString(order, ['side'], 'Unavailable')} />
+          <DataRow label="Filled Qty" value={firstString(order, ['filled_qty', 'qty'], 'Unavailable')} />
+          <DataRow label="Avg Fill" value={formatMoney(firstNumber(order, ['avg_fill', 'filled_avg_price']))} />
+          <DataRow label="Value" value={formatMoney(firstNumber(order, ['order_value', 'notional']))} />
+          <DataRow label="Submitted" value={formatDateTime(order.submitted_at || order.created_at)} />
         </Bismel1Card>
       ))}
     </AppShell>
@@ -72,6 +84,21 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   text: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.small,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  copy: {
+    flex: 1,
+    gap: 3,
+  },
+  status: {
+    color: colors.success,
+    fontSize: typography.small,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 });

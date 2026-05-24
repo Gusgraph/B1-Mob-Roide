@@ -9,25 +9,26 @@
 // - File Path: billing.tsx - app/more/billing.tsx
 // =====================================================
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import { BadgeDollarSign, ExternalLink } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { customerSafeMessage } from '@/api/errors';
 import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
+import { DataRow } from '@/components/DataRow';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { formatDateTime } from '@/utils/dates';
 import { asRecord, firstString } from '@/utils/records';
 
 export default function BillingScreen() {
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -35,7 +36,8 @@ export default function BillingScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        setSummary(asRecord(await api.get<unknown>(endpoints.billingSummary)));
+        const response = asRecord(await api.get<unknown>(endpoints.billingSummary));
+        setSummary(asRecord(response.billing || response));
       } catch (loadError) {
         setError(customerSafeMessage(loadError));
       } finally {
@@ -47,32 +49,33 @@ export default function BillingScreen() {
   }, []);
 
   const openPortal = async () => {
-    setIsOpening(true);
     setError(null);
     try {
-      await api.post(endpoints.billingPortal);
+      await Linking.openURL('https://bismel1.com/customer/billing');
     } catch (portalError) {
       setError(customerSafeMessage(portalError));
-    } finally {
-      setIsOpening(false);
     }
   };
 
-  const canOpenPortal = Boolean(summary?.can_open_portal || asRecord(summary?.actions).billing_portal);
+  const canOpenPortal = Boolean(summary);
 
   return (
-    <AppShell title="Billing">
+    <AppShell title="Billing" showAccountNav>
       {isLoading ? <LoadingState label="Loading billing" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {summary ? (
         <Bismel1Card>
           <BadgeDollarSign color={colors.success} size={19} />
-          <Text style={styles.title}>{firstString(summary, ['plan_name', 'plan', 'status'], 'Billing')}</Text>
-          <Text style={styles.text}>{firstString(summary, ['renewal_date', 'next_invoice_at', 'message'], '')}</Text>
+          <Text style={styles.title}>{firstString(summary, ['plan_label', 'plan_name', 'plan_code'], 'Billing')}</Text>
+          <DataRow label="Subscription" value={firstString(summary, ['subscription_status', 'stripe_status'], 'Unavailable')} tone={summary.subscription_active === true ? 'success' : 'warning'} />
+          <DataRow label="Billing ID" value={firstString(summary, ['customer_id'], 'Unavailable')} />
+          <DataRow label="Add-ons" value={firstString(summary, ['add_on_count'], '0')} />
+          <DataRow label="Confirmed" value={formatDateTime(summary.confirmed_at)} />
+          <Text style={styles.text}>{firstString(summary, ['blocked_summary', 'message'], '')}</Text>
           {canOpenPortal ? (
-            <Pressable style={styles.button} onPress={openPortal} disabled={isOpening}>
+            <Pressable style={styles.button} onPress={openPortal}>
               <ExternalLink color={colors.white} size={15} />
-              <Text style={styles.buttonText}>{isOpening ? 'Opening' : 'Open Billing Portal'}</Text>
+              <Text style={styles.buttonText}>Open Billing Portal</Text>
             </Pressable>
           ) : null}
         </Bismel1Card>

@@ -29,6 +29,7 @@ export default function MoreLayout() {
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
+        headerShown: false,
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
         headerTitleStyle: { fontSize: 27, fontWeight: '700' },
@@ -39,7 +40,6 @@ export default function MoreLayout() {
       <Stack.Screen name="orders" options={{ title: 'Orders' }} />
       <Stack.Screen name="performance" options={{ title: 'Performance' }} />
       <Stack.Screen name="billing" options={{ title: 'Billing' }} />
-      <Stack.Screen name="support" options={{ title: 'Support' }} />
       <Stack.Screen name="affiliate" options={{ title: 'Affiliate' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
