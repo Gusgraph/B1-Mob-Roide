@@ -144,8 +144,8 @@ export default function DashboardScreen() {
   }, [activeAccount]);
 
   const dashboardSnapshot = asRecord(dashboard?.account_snapshot || dashboard?.snapshot || dashboard?.account);
-  const fallbackSnapshot = normalizeAccountSnapshot(activeAccount?.raw);
-  const effectiveSnapshot = asRecord(snapshot || fallbackSnapshot || dashboardSnapshot);
+  const accountRecord = normalizeAccountSnapshot(activeAccount?.raw);
+  const effectiveSnapshot = firstRecord(snapshot, accountRecord, !activeAccount ? dashboardSnapshot : null);
   const brokerSnapshot = asRecord(effectiveSnapshot.broker);
   const products = asArray(dashboard?.active_products || dashboard?.products);
   const persistedDismissedAlertKeys = asArray<unknown>(dashboard?.dismissed_alert_keys).map((key) => String(key));
@@ -158,15 +158,18 @@ export default function DashboardScreen() {
   const scopedPositions = useMemo(() => filterRowsByAccount(positions, activeAccount), [activeAccount, positions]);
   const scopedOrders = useMemo(() => filterRowsByAccount(orders, activeAccount), [activeAccount, orders]);
   const scopedTrades = useMemo(() => filterTradesByAccount(trades, activeAccount), [activeAccount, trades]);
+  const hasScopedPositionFeed = useMemo(() => positions.some(rowHasAccountIdentity), [positions]);
+  const hasScopedOrderFeed = useMemo(() => orders.some(rowHasAccountIdentity), [orders]);
   const hasScopedTradeFeed = useMemo(
     () => trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber),
     [trades],
   );
   const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed);
-  const openPositionsCount = scopedPositions.length || firstNumber(effectiveSnapshot, ['open_positions_count', 'positions_count']) || firstNumber(asRecord(dashboard), ['open_positions_count', 'positions_count']);
-  const ordersCount = scopedOrders.length || firstNumber(effectiveSnapshot, ['orders_count', 'open_orders_count']) || firstNumber(asRecord(dashboard), ['orders_count', 'open_orders_count']);
+  const openPositionsCount = accountCount(scopedPositions, hasScopedPositionFeed, effectiveSnapshot, ['open_positions_count', 'positions_count']);
+  const ordersCount = accountCount(scopedOrders, hasScopedOrderFeed, effectiveSnapshot, ['orders_count', 'open_orders_count']);
   const equity = firstNumber(effectiveSnapshot, ['equity', 'portfolio_value', 'balance']) ??
-    firstNumber(brokerSnapshot, ['equity', 'portfolio_value', 'balance']);
+    firstNumber(brokerSnapshot, ['equity', 'portfolio_value', 'balance']) ??
+    0;
 
   return (
     <AppShell
@@ -213,7 +216,7 @@ export default function DashboardScreen() {
                 </Pressable>
               ))}
             </View>
-            {snapshotError ? <Text style={styles.scopeNote}>Using broker account fallback while snapshot sync is unavailable.</Text> : null}
+            {snapshotError ? <Text style={styles.scopeNote}>Snapshot route blocked for this account: {snapshotError}</Text> : null}
           </Bismel1Card>
 
           <Bismel1Card style={styles.compactMetricsCard}>
@@ -229,12 +232,12 @@ export default function DashboardScreen() {
               <View style={styles.metricDivider} />
               <View style={styles.compactMetric}>
                 <Text style={styles.metricLabel}>Open Positions</Text>
-                <Text style={styles.metricValue}>{openPositionsCount === undefined ? '0' : String(openPositionsCount)}</Text>
+                <Text style={styles.metricValue}>{String(openPositionsCount)}</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.compactMetric}>
                 <Text style={styles.metricLabel}>Orders</Text>
-                <Text style={styles.metricValue}>{ordersCount === undefined ? '0' : String(ordersCount)}</Text>
+                <Text style={styles.metricValue}>{String(ordersCount)}</Text>
               </View>
             </View>
           </Bismel1Card>
@@ -248,7 +251,7 @@ export default function DashboardScreen() {
               <View style={styles.dataRows}>
                 <SnapshotRow label="Broker" value={firstString(effectiveSnapshot, ['broker'], firstString(brokerSnapshot, ['broker'], activeAccount?.broker || 'Unavailable'))} styles={styles} />
                 <SnapshotRow label="Mode" value={firstString(effectiveSnapshot, ['environment', 'mode'], firstString(brokerSnapshot, ['environment', 'mode'], 'Unavailable'))} styles={styles} />
-                <SnapshotRow label="Buying Power" value={formatMoney(firstNumber(effectiveSnapshot, ['buying_power']) ?? firstNumber(brokerSnapshot, ['buying_power']))} styles={styles} />
+                <SnapshotRow label="Buying Power" value={formatMoney(firstNumber(effectiveSnapshot, ['buying_power']) ?? firstNumber(brokerSnapshot, ['buying_power']) ?? 0)} styles={styles} />
                 <SnapshotRow label="Last Sync" value={formatDateTime(effectiveSnapshot.last_sync || brokerSnapshot.last_sync)} styles={styles} last />
               </View>
             </Bismel1Card>
@@ -447,6 +450,31 @@ const normalizeAccountSnapshot = (value: unknown) => {
   };
 };
 
+const firstRecord = (...values: unknown[]) => {
+  for (const value of values) {
+    const record = asRecord(value);
+
+    if (Object.keys(record).length) {
+      return record;
+    }
+  }
+
+  return {};
+};
+
+const accountCount = (
+  scopedRows: Record<string, unknown>[],
+  hasScopedFeed: boolean,
+  snapshot: Record<string, unknown>,
+  snapshotKeys: string[],
+) => {
+  if (hasScopedFeed) {
+    return scopedRows.length;
+  }
+
+  return firstNumber(snapshot, snapshotKeys) ?? 0;
+};
+
 const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAccount | null) => {
   if (!account) {
     return rows;
@@ -455,7 +483,7 @@ const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAc
   const hasScopedIdentity = rows.some((row) => rowHasAccountIdentity(row));
 
   if (!hasScopedIdentity) {
-    return rows;
+    return [];
   }
 
   return rows.filter((row) => rowMatchesAccount(row, account));
@@ -469,7 +497,7 @@ const filterTradesByAccount = (trades: TradeActivityItem[], account: ManagedAcco
   const hasScopedIdentity = trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber);
 
   if (!hasScopedIdentity) {
-    return trades;
+    return [];
   }
 
   return trades.filter((trade) => tradeMatchesAccount(trade, account));
