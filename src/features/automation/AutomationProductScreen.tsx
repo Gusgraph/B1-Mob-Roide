@@ -9,7 +9,7 @@
 // - File Path: AutomationProductScreen.tsx - src/features/automation/AutomationProductScreen.tsx
 // =====================================================
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { ArrowUp, Bot, Check, ChevronDown, Power, RadioTower, Search, X } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
@@ -23,6 +23,7 @@ import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -58,7 +59,8 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
   const scrollRef = useRef<ScrollView | null>(null);
   const { accounts, accountsError, assignProductAccount, getProductAccount, isLoadingAccounts } = useAccounts();
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { height, width } = useWindowDimensions();
+  const styles = makeStyles(colors, width, height);
   const assignedAccount = getProductAccount(productKey);
 
   const loadProduct = useCallback(async () => {
@@ -225,41 +227,49 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
 
       {automation ? (
         <>
-          <Bismel1Card>
-            <View style={styles.cardHeader}>
-              <Bot color={colors.accent} size={19} />
-              <Text style={styles.title}>{firstString(product, ['product_name', 'name'], title)}</Text>
-              <StatusBadge label={automationEnabled ? 'Automation On' : 'Automation Off'} status={automationEnabled ? 'success' : 'warning'} />
-            </View>
-            <View style={styles.metricsGrid}>
-              <DataRow label="Broker status" value={brokerStatus.ready === true ? 'Ready' : 'Needs setup'} tone={brokerStatus.ready === true ? 'success' : 'warning'} />
-              <Text style={styles.cardBody}>{brokerStatus.ready === true ? 'Trading account is connected and available for this product lane.' : 'Connect and verify a trading account before enabling automation.'}</Text>
-              <DataRow label="System state" value={automationEnabled ? 'Automation On' : 'Automation Off'} tone={automationEnabled ? 'success' : 'warning'} />
-              <Text style={styles.cardBody}>{automationEnabled ? 'B1 is monitoring the selected symbols for this product lane.' : 'Automation is off. Symbols remain saved, but B1 is not actively monitoring this slot.'}</Text>
-              <DataRow label="Strategy status" value={formatStrategyStatus(firstString(strategyStatus, ['status'], 'Waiting for runtime'))} />
-              <DataRow label="Automation Mode" value={firstString(accountSlot, ['mode'], 'Unavailable')} />
-              <DataRow label="Last System Update" value={formatDateTime(systemState.settings_updated_at || systemState.last_runtime_at)} />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={!canUseControls || isWorking}
-              onPress={toggleAutomation}
-              style={[styles.powerButton, !automationEnabled && styles.powerButtonOff, isWorking && styles.disabledAction]}
-            >
-              <Power color={colors.white} size={13} />
-              <Text style={styles.powerText}>{automationEnabled ? 'Pause automation' : 'Resume automation'}</Text>
-            </Pressable>
-            {actionMessage ? <Text style={styles.successText}>{actionMessage}</Text> : null}
-          </Bismel1Card>
+          <ResponsiveGrid>
+            <Bismel1Card>
+              <View style={styles.cardHeader}>
+                <Bot color={colors.accent} size={19} />
+                <Text style={styles.title}>{firstString(product, ['product_name', 'name'], title)}</Text>
+                <StatusBadge label={automationEnabled ? 'Automation On' : 'Automation Off'} status={automationEnabled ? 'success' : 'warning'} />
+              </View>
+              <View style={styles.metricsGrid}>
+                <DataRow label="Broker status" value={brokerStatus.ready === true ? 'Ready' : 'Needs setup'} tone={brokerStatus.ready === true ? 'success' : 'warning'} />
+                <Text style={styles.cardBody}>{brokerStatus.ready === true ? 'Trading account is connected and available for this product lane.' : 'Connect and verify a trading account before enabling automation.'}</Text>
+                <DataRow label="System state" value={automationEnabled ? 'Automation On' : 'Automation Off'} tone={automationEnabled ? 'success' : 'warning'} />
+                <Text style={styles.cardBody}>{automationEnabled ? 'B1 is monitoring the selected symbols for this product lane.' : 'Automation is off. Symbols remain saved, but B1 is not actively monitoring this slot.'}</Text>
+                <DataRow label="Strategy status" value={formatStrategyStatus(firstString(strategyStatus, ['status'], 'Waiting for runtime'))} />
+                <DataRow label="Automation Mode" value={firstString(accountSlot, ['mode'], 'Unavailable')} />
+                <DataRow label="Last System Update" value={formatDateTime(systemState.settings_updated_at || systemState.last_runtime_at)} />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canUseControls || isWorking}
+                onPress={toggleAutomation}
+                style={[styles.powerButton, !automationEnabled && styles.powerButtonOff, isWorking && styles.disabledAction]}
+              >
+                <Power color={colors.white} size={13} />
+                <Text style={styles.powerText}>{automationEnabled ? 'Pause automation' : 'Resume automation'}</Text>
+              </Pressable>
+              {actionMessage ? <Text style={styles.successText}>{actionMessage}</Text> : null}
+            </Bismel1Card>
 
-          <B1RuntimeWindow
-            accountReady={runtimeWindow.account_ready === true || brokerStatus.ready === true}
-            automationEnabled={automationEnabled}
-            colors={colors}
-            runtimeWindow={runtimeWindow}
-            styles={styles}
-            workFeed={workFeed}
-          />
+            <Bismel1Card>
+              <View style={styles.cardHeader}>
+                <RadioTower color={colors.cyan} size={19} />
+                <Text style={styles.title}>Runtime Feed</Text>
+              </View>
+              <B1RuntimeWindow
+                accountReady={runtimeWindow.account_ready === true || brokerStatus.ready === true}
+                automationEnabled={automationEnabled}
+                colors={colors}
+                runtimeWindow={runtimeWindow}
+                styles={styles}
+                workFeed={workFeed}
+              />
+            </Bismel1Card>
+          </ResponsiveGrid>
 
           <Bismel1Card>
             <View style={styles.cardHeader}>
@@ -315,7 +325,8 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
             {symbolError ? <Text style={styles.errorText}>{symbolError}</Text> : null}
             {isLoadingSymbols && !symbols.length ? <LoadingState label="Loading symbols" /> : null}
             {symbols.length ? (
-              symbols.map((symbol, index) => {
+              <View style={styles.symbolList}>
+              {symbols.map((symbol, index) => {
                 const symbolCode = firstString(symbol, ['symbol'], 'Symbol');
                 const symbolStrategy = asRecord(symbol.strategy_status);
                 const active = symbol.active !== false;
@@ -396,7 +407,8 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
                     </View>
                   </View>
                 );
-              })
+              })}
+              </View>
             ) : !isLoadingSymbols && !symbolError ? (
               <Text style={styles.text}>No symbols added yet.{'\n'}Search and add symbols to start monitoring this product lane.</Text>
             ) : null}
@@ -1061,7 +1073,10 @@ const marketGaugeToneStyle = (colors: ThemeColors, status: string) => {
   return { backgroundColor: colors.textMuted, color: colors.textMuted, shadowColor: colors.textMuted };
 };
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, width: number, height: number) => {
+  const wideCards = Math.min(width, height) >= 600 || width >= 900;
+
+  return StyleSheet.create({
   cardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1317,6 +1332,12 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 2,
     gap: 11,
     padding: 11,
+    width: wideCards ? '48%' : '100%',
+  },
+  symbolList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 11,
   },
   symbolCardCyan: {
     borderColor: colors.cyan,
@@ -1563,3 +1584,4 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '900',
   },
 });
+};

@@ -14,6 +14,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LockKeyhole, Sparkles } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { LivePerformancePreview } from '@/features/home/LivePerformancePreview';
 import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
@@ -38,43 +39,45 @@ export default function FrontPage() {
   return (
     <AppShell>
       <View style={styles.container}>
-        <View style={styles.heroBlock}>
-          <View style={styles.copy}>
-            <View style={styles.brandRow}>
-              <Image
-                source={require('@/assets/images/android-icon-foreground.png')}
-                style={styles.logo}
-              />
-              <Text style={styles.title}>
-                Bismel<Text style={styles.titleOne}>1</Text>
-              </Text>
+        <ResponsiveGrid minItemWidth={373}>
+          <View style={styles.heroBlock}>
+            <View style={styles.copy}>
+              <View style={styles.brandRow}>
+                <Image
+                  source={require('@/assets/images/android-icon-foreground.png')}
+                  style={styles.logo}
+                />
+                <Text style={styles.title}>
+                  Bismel<Text style={styles.titleOne}>1</Text>
+                </Text>
+              </View>
+              <Text style={styles.subtitle}>Automated AI Trading App</Text>
             </View>
-            <Text style={styles.subtitle}>Automated AI Trading App</Text>
-          </View>
 
-          <View style={styles.actions}>
-            <Link href={'/(auth)/login' as never} asChild>
-              <Pressable style={styles.primaryButton}>
-                <LockKeyhole color={colors.white} size={17} />
-                <Text style={styles.primaryText}>Login</Text>
+            <View style={styles.actions}>
+              <Link href={'/(auth)/login' as never} asChild>
+                <Pressable style={styles.primaryButton}>
+                  <LockKeyhole color={colors.white} size={17} />
+                  <Text style={styles.primaryText}>Login</Text>
+                </Pressable>
+              </Link>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => {
+                  void openBrowserAsync(PLANS_URL, {
+                    presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
+                  });
+                }}
+                style={styles.secondaryButton}
+              >
+                <Sparkles color={colors.accent} size={17} />
+                <Text style={styles.secondaryText}>View Plans</Text>
               </Pressable>
-            </Link>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => {
-                void openBrowserAsync(PLANS_URL, {
-                  presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
-                });
-              }}
-              style={styles.secondaryButton}
-            >
-              <Sparkles color={colors.accent} size={17} />
-              <Text style={styles.secondaryText}>View Plans</Text>
-            </Pressable>
+            </View>
           </View>
-        </View>
 
-        <LivePerformancePreview />
+          <LivePerformancePreview />
+        </ResponsiveGrid>
 
         <Text style={styles.disclosure}>
           Trading involves risk. Bismel1 is software and does not guarantee trading results.

@@ -22,6 +22,7 @@ import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -166,72 +167,76 @@ export default function BrokerAccountsScreen() {
           </View>
         </Bismel1Card>
       ) : null}
-      {accounts.map((account, index) => {
-        if (selectedBrokerId && accountKey(account) !== selectedBrokerId) {
-          return null;
-        }
+      <ResponsiveGrid>
+        {accounts.map((account, index) => {
+          if (selectedBrokerId && accountKey(account) !== selectedBrokerId) {
+            return null;
+          }
 
-        const disconnectAction = asRecord(asRecord(account.actions).disconnect);
-        const hasDisconnectAction = Boolean(account.actions || account.can_disconnect !== undefined || account.broker_account_ref || account.id || account.broker_account_id);
-        const canDisconnect = !disconnectBlocked(account) && (account.can_disconnect === true || disconnectAction.enabled === true || hasDisconnectAction);
-        return (
-          <Bismel1Card key={String(account.id || account.broker_account_id || account.broker_account_ref || index)}>
-            <Building2 color={colors.accent} size={19} />
-            <Text style={styles.title}>{firstString(account, ['account_label', 'name', 'broker', 'provider'], 'Broker Account')}</Text>
-            <StatusBadge label={account.connected === true ? 'Connected' : firstString(account, ['status', 'connection_status'], 'Status unavailable')} status={account.connected === true ? 'success' : 'warning'} />
-            <DataRow label="Broker" value={firstString(account, ['broker'], 'Unavailable')} />
-            <DataRow label="Mode" value={firstString(account, ['environment'], 'Unavailable')} />
-            <DataRow label="Equity" value={formatMoney(firstNumber(account, ['equity']))} />
-            <DataRow label="Buying Power" value={formatMoney(firstNumber(account, ['buying_power']))} />
-            <DataRow label="Last Sync" value={formatDateTime(account.last_sync)} />
-            <DataRow label="Automation" value={account.automation_enabled === true ? 'Enabled' : 'Off'} tone={account.automation_enabled === true ? 'success' : 'warning'} />
-            {hasDisconnectAction ? (
-              <Pressable
-                hitSlop={11}
-                onPress={() => setDisconnectTarget(account)}
-                onPressIn={() => setDisconnectTarget(account)}
-                style={[styles.dangerButton, !canDisconnect && styles.warningButton]}
-              >
-                <Unlink color={colors.white} size={15} />
-                <Text style={styles.buttonText}>Disconnect</Text>
-              </Pressable>
-            ) : null}
-          </Bismel1Card>
-        );
-      })}
+          const disconnectAction = asRecord(asRecord(account.actions).disconnect);
+          const hasDisconnectAction = Boolean(account.actions || account.can_disconnect !== undefined || account.broker_account_ref || account.id || account.broker_account_id);
+          const canDisconnect = !disconnectBlocked(account) && (account.can_disconnect === true || disconnectAction.enabled === true || hasDisconnectAction);
+          return (
+            <Bismel1Card key={String(account.id || account.broker_account_id || account.broker_account_ref || index)}>
+              <Building2 color={colors.accent} size={19} />
+              <Text style={styles.title}>{firstString(account, ['account_label', 'name', 'broker', 'provider'], 'Broker Account')}</Text>
+              <StatusBadge label={account.connected === true ? 'Connected' : firstString(account, ['status', 'connection_status'], 'Status unavailable')} status={account.connected === true ? 'success' : 'warning'} />
+              <DataRow label="Broker" value={firstString(account, ['broker'], 'Unavailable')} />
+              <DataRow label="Mode" value={firstString(account, ['environment'], 'Unavailable')} />
+              <DataRow label="Equity" value={formatMoney(firstNumber(account, ['equity']))} />
+              <DataRow label="Buying Power" value={formatMoney(firstNumber(account, ['buying_power']))} />
+              <DataRow label="Last Sync" value={formatDateTime(account.last_sync)} />
+              <DataRow label="Automation" value={account.automation_enabled === true ? 'Enabled' : 'Off'} tone={account.automation_enabled === true ? 'success' : 'warning'} />
+              {hasDisconnectAction ? (
+                <Pressable
+                  hitSlop={11}
+                  onPress={() => setDisconnectTarget(account)}
+                  onPressIn={() => setDisconnectTarget(account)}
+                  style={[styles.dangerButton, !canDisconnect && styles.warningButton]}
+                >
+                  <Unlink color={colors.white} size={15} />
+                  <Text style={styles.buttonText}>Disconnect</Text>
+                </Pressable>
+              ) : null}
+            </Bismel1Card>
+          );
+        })}
+      </ResponsiveGrid>
       {connectAllowed ? (
-        <Bismel1Card>
-          <LinkIcon color={colors.success} size={19} />
-          <Text style={styles.title}>Connect Alpaca</Text>
-          {connectAction.next_slot_number ? <DataRow label="Next Account" value={`Account ${String(connectAction.next_slot_number)}`} /> : null}
-          <View style={styles.field}>
-            <Text style={styles.label}>API Key</Text>
-            <TextInput
-              autoCapitalize="none"
-              onChangeText={setApiKey}
-              placeholder="API key"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              value={apiKey}
-            />
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>API Secret</Text>
-            <TextInput
-              autoCapitalize="none"
-              onChangeText={setApiSecret}
-              placeholder="API secret"
-              placeholderTextColor={colors.textMuted}
-              secureTextEntry
-              style={styles.input}
-              value={apiSecret}
-            />
-          </View>
-          <Pressable disabled={!canSubmitConnect} onPress={connect} style={[styles.button, !canSubmitConnect && styles.disabled]}>
-            <LinkIcon color={colors.white} size={15} />
-            <Text style={styles.buttonText}>{isSubmitting ? 'Submitting' : 'Connect'}</Text>
-          </Pressable>
-        </Bismel1Card>
+        <ResponsiveGrid>
+          <Bismel1Card>
+            <LinkIcon color={colors.success} size={19} />
+            <Text style={styles.title}>Connect Alpaca</Text>
+            {connectAction.next_slot_number ? <DataRow label="Next Account" value={`Account ${String(connectAction.next_slot_number)}`} /> : null}
+            <View style={styles.field}>
+              <Text style={styles.label}>API Key</Text>
+              <TextInput
+                autoCapitalize="none"
+                onChangeText={setApiKey}
+                placeholder="API key"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={apiKey}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>API Secret</Text>
+              <TextInput
+                autoCapitalize="none"
+                onChangeText={setApiSecret}
+                placeholder="API secret"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                style={styles.input}
+                value={apiSecret}
+              />
+            </View>
+            <Pressable disabled={!canSubmitConnect} onPress={connect} style={[styles.button, !canSubmitConnect && styles.disabled]}>
+              <LinkIcon color={colors.white} size={15} />
+              <Text style={styles.buttonText}>{isSubmitting ? 'Submitting' : 'Connect'}</Text>
+            </Pressable>
+          </Bismel1Card>
+        </ResponsiveGrid>
       ) : null}
       <ConfirmSheet
         confirmLabel={disconnectBlocked(disconnectTarget) ? 'OK' : 'Disconnect'}

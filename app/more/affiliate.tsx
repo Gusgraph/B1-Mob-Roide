@@ -20,6 +20,7 @@ import { AppShell } from '@/components/AppShell';
 import { Bismel1Card } from '@/components/Bismel1Card';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -62,11 +63,13 @@ export default function AffiliateScreen() {
       {isLoading ? <LoadingState label="Loading affiliate summary" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {summary ? (
-        <Bismel1Card>
-          <Network color={colors.accent} size={19} />
-          <Text style={styles.title}>{firstString(summary, ['status', 'tier'], 'Affiliate')}</Text>
-          <Text style={styles.text}>{firstString(summary, ['referrals_count', 'referrals', 'message'])}</Text>
-        </Bismel1Card>
+        <ResponsiveGrid>
+          <Bismel1Card>
+            <Network color={colors.accent} size={19} />
+            <Text style={styles.title}>{firstString(summary, ['status', 'tier'], 'Affiliate')}</Text>
+            <Text style={styles.text}>{firstString(summary, ['referrals_count', 'referrals', 'message'])}</Text>
+          </Bismel1Card>
+        </ResponsiveGrid>
       ) : null}
     </AppShell>
   );

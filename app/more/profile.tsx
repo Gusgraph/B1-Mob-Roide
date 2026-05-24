@@ -20,6 +20,7 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { DataRow } from '@/components/DataRow';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -55,15 +56,17 @@ export default function ProfileScreen() {
     <AppShell title="Profile" showAccountNav>
       {isLoading ? <LoadingState label="Loading profile" /> : null}
       {error ? <ErrorState message={error} /> : null}
-      <Bismel1Card>
-        <UserRound color={colors.accent} size={19} />
-        <Text style={styles.title}>{firstString(profileUser, ['name'], user?.name || 'Bismel1 Customer')}</Text>
-        <Text style={styles.text}>{firstString(profileUser, ['email'], user?.email || 'Email unavailable')}</Text>
-        <DataRow label="Email Status" value={profileUser.email_verified === true ? 'Verified' : 'Unverified'} tone={profileUser.email_verified === true ? 'success' : 'warning'} />
-        <DataRow label="Account" value={firstString(selectedAccount, ['label'], 'Unavailable')} />
-        <DataRow label="Access" value={firstString(selectedAccount, ['status'], 'Unavailable')} tone={selectedAccount.status === 'active' ? 'success' : 'warning'} />
-        <DataRow label="Products" value={activeProducts.map((product) => firstString(product, ['name', 'code'], '')).filter(Boolean).join(', ') || 'Unavailable'} />
-      </Bismel1Card>
+      <ResponsiveGrid>
+        <Bismel1Card>
+          <UserRound color={colors.accent} size={19} />
+          <Text style={styles.title}>{firstString(profileUser, ['name'], user?.name || 'Bismel1 Customer')}</Text>
+          <Text style={styles.text}>{firstString(profileUser, ['email'], user?.email || 'Email unavailable')}</Text>
+          <DataRow label="Email Status" value={profileUser.email_verified === true ? 'Verified' : 'Unverified'} tone={profileUser.email_verified === true ? 'success' : 'warning'} />
+          <DataRow label="Account" value={firstString(selectedAccount, ['label'], 'Unavailable')} />
+          <DataRow label="Access" value={firstString(selectedAccount, ['status'], 'Unavailable')} tone={selectedAccount.status === 'active' ? 'success' : 'warning'} />
+          <DataRow label="Products" value={activeProducts.map((product) => firstString(product, ['name', 'code'], '')).filter(Boolean).join(', ') || 'Unavailable'} />
+        </Bismel1Card>
+      </ResponsiveGrid>
     </AppShell>
   );
 }

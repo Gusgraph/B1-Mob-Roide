@@ -9,7 +9,7 @@
 // - File Path: performance.tsx - app/more/performance.tsx
 // =====================================================
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { GestureResponderEvent, LayoutChangeEvent, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { GestureResponderEvent, LayoutChangeEvent, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { ChartNoAxesCombined } from 'lucide-react-native';
 import { api } from '@/api/client';
@@ -80,7 +80,8 @@ export default function PerformanceScreen() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const { accounts, accountsError, isLoadingAccounts, refreshAccounts, selectAccount, selectedAccount } = useAccounts();
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { height, width } = useWindowDimensions();
+  const styles = makeStyles(colors, width, height);
 
   const load = useCallback(async () => {
     setError(null);
@@ -686,7 +687,11 @@ const tooltipPosition = (point: { x: number; y: number }, width: number) => ({
   top: Math.max(5, point.y - 67),
 });
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, width: number, height: number) => {
+  const isLandscape = width > height;
+  const isTvWide = width >= 1181;
+
+  return StyleSheet.create({
   card: {
     gap: 15,
     padding: 15,
@@ -706,6 +711,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   topHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 11,
     justifyContent: 'space-between',
     minHeight: 43,
@@ -729,9 +735,10 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   periodRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 5,
     justifyContent: 'flex-end',
-    maxWidth: 227,
+    maxWidth: isLandscape ? 373 : 227,
   },
   periodChip: {
     backgroundColor: colors.surfaceMuted,
@@ -824,7 +831,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 7,
     borderWidth: 1,
-    flexBasis: '48%',
+    flexBasis: isTvWide ? '31%' : '48%',
     flexGrow: 1,
     gap: 1,
     minHeight: 45,
@@ -913,6 +920,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   chartCanvas: {
     flex: 1,
     minHeight: CHART_HEIGHT,
+    minWidth: isLandscape ? 431 : 241,
     position: 'relative',
   },
   tooltip: {
@@ -947,3 +955,4 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     textAlign: 'center',
   },
 });
+};

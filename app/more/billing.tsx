@@ -19,6 +19,7 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { DataRow } from '@/components/DataRow';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -64,21 +65,23 @@ export default function BillingScreen() {
       {isLoading ? <LoadingState label="Loading billing" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {summary ? (
-        <Bismel1Card>
-          <BadgeDollarSign color={colors.success} size={19} />
-          <Text style={styles.title}>{firstString(summary, ['plan_label', 'plan_name', 'plan_code'], 'Billing')}</Text>
-          <DataRow label="Subscription" value={firstString(summary, ['subscription_status', 'stripe_status'], 'Unavailable')} tone={summary.subscription_active === true ? 'success' : 'warning'} />
-          <DataRow label="Billing ID" value={firstString(summary, ['customer_id'], 'Unavailable')} />
-          <DataRow label="Add-ons" value={firstString(summary, ['add_on_count'], '0')} />
-          <DataRow label="Confirmed" value={formatDateTime(summary.confirmed_at)} />
-          <Text style={styles.text}>{firstString(summary, ['blocked_summary', 'message'], '')}</Text>
-          {canOpenPortal ? (
-            <Pressable style={styles.button} onPress={openPortal}>
-              <ExternalLink color={colors.white} size={15} />
-              <Text style={styles.buttonText}>Open Billing Portal</Text>
-            </Pressable>
-          ) : null}
-        </Bismel1Card>
+        <ResponsiveGrid>
+          <Bismel1Card>
+            <BadgeDollarSign color={colors.success} size={19} />
+            <Text style={styles.title}>{firstString(summary, ['plan_label', 'plan_name', 'plan_code'], 'Billing')}</Text>
+            <DataRow label="Subscription" value={firstString(summary, ['subscription_status', 'stripe_status'], 'Unavailable')} tone={summary.subscription_active === true ? 'success' : 'warning'} />
+            <DataRow label="Billing ID" value={firstString(summary, ['customer_id'], 'Unavailable')} />
+            <DataRow label="Add-ons" value={firstString(summary, ['add_on_count'], '0')} />
+            <DataRow label="Confirmed" value={formatDateTime(summary.confirmed_at)} />
+            <Text style={styles.text}>{firstString(summary, ['blocked_summary', 'message'], '')}</Text>
+            {canOpenPortal ? (
+              <Pressable style={styles.button} onPress={openPortal}>
+                <ExternalLink color={colors.white} size={15} />
+                <Text style={styles.buttonText}>Open Billing Portal</Text>
+              </Pressable>
+            ) : null}
+          </Bismel1Card>
+        </ResponsiveGrid>
       ) : null}
     </AppShell>
   );

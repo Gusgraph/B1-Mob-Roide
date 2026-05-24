@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
 import { MetricCard } from '@/components/MetricCard';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -115,58 +116,60 @@ export default function DashboardScreen() {
             />
             <MetricCard label="Orders" value={ordersCount === undefined ? '0' : String(ordersCount)} />
           </View>
-          <Bismel1Card>
-            <View style={styles.cardHeader}>
-              <Activity color={colors.success} size={19} />
-              <Text style={styles.cardTitle}>Account Snapshot</Text>
-            </View>
-            <DataRow label="Broker" value={firstString(brokerSnapshot, ['broker'], 'Unavailable')} />
-            <DataRow label="Mode" value={firstString(brokerSnapshot, ['environment'], 'Unavailable')} />
-            <DataRow label="Buying Power" value={formatMoney(firstNumber(brokerSnapshot, ['buying_power']))} />
-            <DataRow label="Last Sync" value={formatDateTime(brokerSnapshot.last_sync)} />
-          </Bismel1Card>
-          <Bismel1Card>
-            <View style={styles.cardHeader}>
-              <Boxes color={colors.cyan} size={19} />
-              <Text style={styles.cardTitle}>Active Products</Text>
-            </View>
-            {products.length ? (
-              products.slice(0, 4).map((product, index) => {
-                const record = asRecord(product);
-                return (
-                  <View key={String(record.id || record.slug || index)} style={styles.row}>
-                    <Text style={styles.rowText}>{firstString(record, ['name', 'title', 'slug'])}</Text>
-                    <StatusBadge label={firstString(record, ['status'], 'Active')} status="success" />
-                  </View>
-                );
-              })
-            ) : (
-              <Text style={styles.muted}>No active products returned.</Text>
-            )}
-          </Bismel1Card>
-          <Bismel1Card>
-            <View style={styles.cardHeader}>
-              <Activity color={colors.purple} size={19} />
-              <Text style={styles.cardTitle}>Latest Activity</Text>
-            </View>
-            {activity.length ? (
-              activity.slice(0, 5).map((item, index) => {
-                const record = asRecord(item);
-                return (
-                  <View key={String(record.id || index)} style={styles.activityRow}>
-                    <View style={styles.activityDot} />
-                    <View style={styles.activityCopy}>
-                      <Text style={styles.activityTitle}>{firstString(record, ['label', 'message', 'title', 'type'])}</Text>
-                      <Text style={styles.muted}>{firstString(record, ['detail', 'description', 'status'], '')}</Text>
+          <ResponsiveGrid>
+            <Bismel1Card>
+              <View style={styles.cardHeader}>
+                <Activity color={colors.success} size={19} />
+                <Text style={styles.cardTitle}>Account Snapshot</Text>
+              </View>
+              <DataRow label="Broker" value={firstString(brokerSnapshot, ['broker'], 'Unavailable')} />
+              <DataRow label="Mode" value={firstString(brokerSnapshot, ['environment'], 'Unavailable')} />
+              <DataRow label="Buying Power" value={formatMoney(firstNumber(brokerSnapshot, ['buying_power']))} />
+              <DataRow label="Last Sync" value={formatDateTime(brokerSnapshot.last_sync)} />
+            </Bismel1Card>
+            <Bismel1Card>
+              <View style={styles.cardHeader}>
+                <Boxes color={colors.cyan} size={19} />
+                <Text style={styles.cardTitle}>Active Products</Text>
+              </View>
+              {products.length ? (
+                products.slice(0, 4).map((product, index) => {
+                  const record = asRecord(product);
+                  return (
+                    <View key={String(record.id || record.slug || index)} style={styles.row}>
+                      <Text style={styles.rowText}>{firstString(record, ['name', 'title', 'slug'])}</Text>
+                      <StatusBadge label={firstString(record, ['status'], 'Active')} status="success" />
                     </View>
-                    <Text style={styles.time}>{formatDateTime(record.timestamp || record.created_at)}</Text>
-                  </View>
-                );
-              })
-            ) : (
-              <Text style={styles.muted}>No activity returned.</Text>
-            )}
-          </Bismel1Card>
+                  );
+                })
+              ) : (
+                <Text style={styles.muted}>No active products returned.</Text>
+              )}
+            </Bismel1Card>
+            <Bismel1Card>
+              <View style={styles.cardHeader}>
+                <Activity color={colors.purple} size={19} />
+                <Text style={styles.cardTitle}>Latest Activity</Text>
+              </View>
+              {activity.length ? (
+                activity.slice(0, 5).map((item, index) => {
+                  const record = asRecord(item);
+                  return (
+                    <View key={String(record.id || index)} style={styles.activityRow}>
+                      <View style={styles.activityDot} />
+                      <View style={styles.activityCopy}>
+                        <Text style={styles.activityTitle}>{firstString(record, ['label', 'message', 'title', 'type'])}</Text>
+                        <Text style={styles.muted}>{firstString(record, ['detail', 'description', 'status'], '')}</Text>
+                      </View>
+                      <Text style={styles.time}>{formatDateTime(record.timestamp || record.created_at)}</Text>
+                    </View>
+                  );
+                })
+              ) : (
+                <Text style={styles.muted}>No activity returned.</Text>
+              )}
+            </Bismel1Card>
+          </ResponsiveGrid>
         </>
       ) : null}
       <Modal animationType="fade" transparent visible={alertsOpen} onRequestClose={() => setAlertsOpen(false)}>

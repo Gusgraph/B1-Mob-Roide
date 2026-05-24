@@ -20,6 +20,7 @@ import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -53,17 +54,19 @@ export default function ProductsScreen() {
       {isLoading ? <LoadingState label="Loading products" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && items.length === 0 ? <EmptyState message="No products returned." /> : null}
-      {items.map((item, index) => (
-        <Bismel1Card key={String(item.id || item.slug || index)}>
-          <Package color={colors.accent} size={19} />
-          <Text style={styles.title}>{firstString(item, ['product_name', 'name', 'title', 'slug'], 'Product')}</Text>
-          <StatusBadge label={firstString(item, ['entitlement', 'status', 'state'], 'Status unavailable')} status={item.entitlement === 'active' ? 'success' : 'neutral'} />
-          <DataRow label="Automation" value={item.automation_allowed === true ? 'Allowed' : 'Unavailable'} tone={item.automation_allowed === true ? 'success' : 'warning'} />
-          <DataRow label="Broker Required" value={item.broker_required === true ? 'Yes' : 'No'} />
-          <DataRow label="Accounts" value={firstString(item, ['accounts_count'], '0')} />
-          <DataRow label="Trial Locked" value={item.trial_locked === true ? 'Yes' : 'No'} tone={item.trial_locked === true ? 'danger' : 'success'} />
-        </Bismel1Card>
-      ))}
+      <ResponsiveGrid maxColumns={3}>
+        {items.map((item, index) => (
+          <Bismel1Card key={String(item.id || item.slug || index)}>
+            <Package color={colors.accent} size={19} />
+            <Text style={styles.title}>{firstString(item, ['product_name', 'name', 'title', 'slug'], 'Product')}</Text>
+            <StatusBadge label={firstString(item, ['entitlement', 'status', 'state'], 'Status unavailable')} status={item.entitlement === 'active' ? 'success' : 'neutral'} />
+            <DataRow label="Automation" value={item.automation_allowed === true ? 'Allowed' : 'Unavailable'} tone={item.automation_allowed === true ? 'success' : 'warning'} />
+            <DataRow label="Broker Required" value={item.broker_required === true ? 'Yes' : 'No'} />
+            <DataRow label="Accounts" value={firstString(item, ['accounts_count'], '0')} />
+            <DataRow label="Trial Locked" value={item.trial_locked === true ? 'Yes' : 'No'} tone={item.trial_locked === true ? 'danger' : 'success'} />
+          </Bismel1Card>
+        ))}
+      </ResponsiveGrid>
     </AppShell>
   );
 }

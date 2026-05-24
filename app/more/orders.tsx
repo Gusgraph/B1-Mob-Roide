@@ -20,6 +20,7 @@ import { DataRow } from '@/components/DataRow';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -55,23 +56,25 @@ export default function OrdersScreen() {
       {isLoading ? <LoadingState label="Loading orders" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && orders.length === 0 ? <EmptyState message="No orders returned." /> : null}
-      {orders.map((order, index) => (
-        <Bismel1Card key={String(order.id || index)}>
-          <View style={styles.cardHeader}>
-            <ReceiptText color={colors.accent} size={19} />
-            <View style={styles.copy}>
-              <Text style={styles.title}>{firstString(order, ['symbol', 'client_order_id', 'order_ref', 'id'], 'Order')}</Text>
-              <Text style={styles.text}>{firstString(order, ['safe_source_label'], 'Bismel1')}</Text>
+      <ResponsiveGrid>
+        {orders.map((order, index) => (
+          <Bismel1Card key={String(order.id || index)}>
+            <View style={styles.cardHeader}>
+              <ReceiptText color={colors.accent} size={19} />
+              <View style={styles.copy}>
+                <Text style={styles.title}>{firstString(order, ['symbol', 'client_order_id', 'order_ref', 'id'], 'Order')}</Text>
+                <Text style={styles.text}>{firstString(order, ['safe_source_label'], 'Bismel1')}</Text>
+              </View>
+              <Text style={styles.status}>{firstString(order, ['status'], 'Status')}</Text>
             </View>
-            <Text style={styles.status}>{firstString(order, ['status'], 'Status')}</Text>
-          </View>
-          <DataRow label="Side" value={firstString(order, ['side'], 'Unavailable')} />
-          <DataRow label="Filled Qty" value={firstString(order, ['filled_qty', 'qty'], 'Unavailable')} />
-          <DataRow label="Avg Fill" value={formatMoney(firstNumber(order, ['avg_fill', 'filled_avg_price']))} />
-          <DataRow label="Value" value={formatMoney(firstNumber(order, ['order_value', 'notional']))} />
-          <DataRow label="Submitted" value={formatDateTime(order.submitted_at || order.created_at)} />
-        </Bismel1Card>
-      ))}
+            <DataRow label="Side" value={firstString(order, ['side'], 'Unavailable')} />
+            <DataRow label="Filled Qty" value={firstString(order, ['filled_qty', 'qty'], 'Unavailable')} />
+            <DataRow label="Avg Fill" value={formatMoney(firstNumber(order, ['avg_fill', 'filled_avg_price']))} />
+            <DataRow label="Value" value={formatMoney(firstNumber(order, ['order_value', 'notional']))} />
+            <DataRow label="Submitted" value={formatDateTime(order.submitted_at || order.created_at)} />
+          </Bismel1Card>
+        ))}
+      </ResponsiveGrid>
     </AppShell>
   );
 }

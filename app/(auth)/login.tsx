@@ -13,6 +13,7 @@ import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-nat
 import { Eye, EyeOff, LogIn, Mail, Shield } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { ErrorState } from '@/components/ErrorState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -42,6 +43,7 @@ export default function LoginScreen() {
 
   return (
     <AppShell title="Login">
+      <ResponsiveGrid>
       <View style={styles.form}>
         <View style={styles.field}>
           <View style={styles.labelRow}>
@@ -115,6 +117,7 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </View>
+      </ResponsiveGrid>
     </AppShell>
   );
 }

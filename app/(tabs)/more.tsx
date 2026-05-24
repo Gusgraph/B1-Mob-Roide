@@ -12,6 +12,7 @@ import { Link } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BadgeDollarSign, Bot, ChevronRight, CircleHelp, LogOut, Settings, UserRound } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -48,29 +49,31 @@ export default function MoreScreen() {
             <View style={[styles.switchThumb, !isDark && styles.switchThumbActive]} />
           </View>
         </Pressable>
-        {visibleItems.map((item) => {
-          const external = 'external' in item && item.external === true;
-          const row = (
-            <Pressable
-              onPress={() => external ? Linking.openURL(item.href) : undefined}
-              style={styles.item}
-            >
-              <View style={styles.itemLeft}>
-                <item.icon color={colors.accent} size={19} />
-                <Text style={styles.itemText}>{item.label}</Text>
-              </View>
-              <ChevronRight color={colors.textMuted} size={17} />
-            </Pressable>
-          );
+        <ResponsiveGrid maxColumns={3}>
+          {visibleItems.map((item) => {
+            const external = 'external' in item && item.external === true;
+            const row = (
+              <Pressable
+                onPress={() => external ? Linking.openURL(item.href) : undefined}
+                style={styles.item}
+              >
+                <View style={styles.itemLeft}>
+                  <item.icon color={colors.accent} size={19} />
+                  <Text style={styles.itemText}>{item.label}</Text>
+                </View>
+                <ChevronRight color={colors.textMuted} size={17} />
+              </Pressable>
+            );
 
-          return external ? (
-            <View key={item.href}>{row}</View>
-          ) : (
-            <Link key={item.href} href={item.href as never} asChild>
-              {row}
-            </Link>
-          );
-        })}
+            return external ? (
+              <View key={item.href}>{row}</View>
+            ) : (
+              <Link key={item.href} href={item.href as never} asChild>
+                {row}
+              </Link>
+            );
+          })}
+        </ResponsiveGrid>
         <Pressable style={styles.logout} onPress={logout}>
           <LogOut color={colors.danger} size={19} />
           <Text style={styles.logoutText}>Logout</Text>

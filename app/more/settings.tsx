@@ -20,6 +20,7 @@ import { Bismel1Card } from '@/components/Bismel1Card';
 import { DataRow } from '@/components/DataRow';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -72,7 +73,7 @@ export default function SettingsScreen() {
       {isLoading ? <LoadingState label="Loading settings" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error ? (
-        <>
+        <ResponsiveGrid>
           <Bismel1Card>
             <Settings color={colors.accent} size={19} />
             <Text style={styles.title}>User Basic Info</Text>
@@ -165,7 +166,7 @@ export default function SettingsScreen() {
               <Text style={styles.buttonText}>{isSavingPassword ? 'Saving' : 'Update Password'}</Text>
             </Pressable>
           </Bismel1Card>
-        </>
+        </ResponsiveGrid>
       ) : null}
     </AppShell>
   );
