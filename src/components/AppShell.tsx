@@ -11,9 +11,11 @@
 import { PropsWithChildren, ReactNode, RefObject, useState } from 'react';
 import { Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Menu, X } from 'lucide-react-native';
+import { usePathname, useRouter } from 'expo-router';
+import { Activity, Bot, ChartCandlestick, CircleUserRound, Gauge, Menu, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountSideNav } from '@/components/AccountSideNav';
+import { useAuth } from '@/auth/useAuth';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -33,27 +35,57 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 export function AppShell({ title, subtitle, scroll = true, headerAccessory, showAccountNav = false, refreshing = false, onRefresh, scrollRef, onScroll, floatingAction, children }: AppShellProps) {
+  const { isAuthenticated } = useAuth();
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();
   const isWide = width >= 761;
+  const pathname = usePathname();
+  const router = useRouter();
   const [accountNavOpen, setAccountNavOpen] = useState(false);
   const styles = makeStyles(colors, getResponsiveShell(width, height));
+  const showShellHeader = showAccountNav || isAuthenticated || Boolean(headerAccessory);
 
   const content = (
     <View style={styles.content}>
-      {showAccountNav ? (
-        <Pressable
-          accessibilityLabel="Open account navigation"
-          accessibilityRole="button"
-          onPress={() => setAccountNavOpen(true)}
-          style={styles.menuButton}
-        >
-          <Menu color={colors.text} size={19} />
-        </Pressable>
+      {showShellHeader ? (
+        <View style={styles.shellHeader}>
+          <View style={styles.shellHeaderLeft}>
+            {showAccountNav ? (
+              <Pressable
+                accessibilityLabel="Open account navigation"
+                accessibilityRole="button"
+                onPress={() => setAccountNavOpen(true)}
+                style={styles.menuButton}
+              >
+                <Menu color={colors.text} size={19} />
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.shellHeaderRight}>
+            {isAuthenticated ? (
+              <View style={styles.headerNav}>
+                {headerNavItems.map((item) => {
+                  const active = item.match.some((match) => pathname === match || pathname.startsWith(`${match}/`));
+                  return (
+                    <Pressable
+                      accessibilityLabel={item.label}
+                      accessibilityRole="button"
+                      key={item.label}
+                      onPress={() => router.push(item.href as never)}
+                      style={[styles.headerNavButton, active && styles.headerNavButtonActive]}
+                    >
+                      <item.icon color={active ? colors.black : colors.textMuted} size={19} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+            {headerAccessory}
+          </View>
+        </View>
       ) : null}
-      {headerAccessory ? <View style={styles.topRightActions}>{headerAccessory}</View> : null}
       {title ? (
-        <View style={[styles.header, showAccountNav && styles.headerWithMenu]}>
+        <View style={styles.header}>
           <View style={styles.titleRow}>
             <LinearGradient
               colors={[colors.cyan, colors.success]}
@@ -153,6 +185,14 @@ const marketCandles = [
   { left: '91%', top: 101, wick: 117, body: 45, bodyTop: 39 },
 ] as const;
 
+const headerNavItems = [
+  { label: 'Dashboard', href: '/(tabs)/dashboard', match: ['/dashboard'], icon: Gauge },
+  { label: 'Automation', href: '/(tabs)/automation', match: ['/automation', '/engine'], icon: Bot },
+  { label: 'Positions', href: '/(tabs)/positions', match: ['/positions'], icon: ChartCandlestick },
+  { label: 'Activity', href: '/(tabs)/activity', match: ['/activity'], icon: Activity },
+  { label: 'More', href: '/(tabs)/more', match: ['/more'], icon: CircleUserRound },
+] as const;
+
 const getResponsiveShell = (width: number, height: number) => {
   const shortestSide = Math.min(width, height);
   const isTvCanvas = width >= 1181 && width / Math.max(height, 1) >= 1.5;
@@ -202,6 +242,24 @@ const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsive
     width: '100%',
     zIndex: 1,
   },
+  shellHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 39,
+  },
+  shellHeaderLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minWidth: 39,
+  },
+  shellHeaderRight: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'flex-end',
+  },
   menuButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -210,20 +268,27 @@ const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsive
     borderWidth: 1,
     height: 39,
     justifyContent: 'center',
-    left: 17,
-    position: 'absolute',
-    top: 17,
     width: 39,
-    zIndex: 3,
   },
-  topRightActions: {
+  headerNav: {
     alignItems: 'center',
+    flexShrink: 1,
     flexDirection: 'row',
-    gap: 9,
-    position: 'absolute',
-    right: 17,
-    top: 17,
-    zIndex: 4,
+    gap: 3,
+  },
+  headerNavButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 9,
+    borderWidth: 1,
+    height: 31,
+    justifyContent: 'center',
+    width: 31,
+  },
+  headerNavButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.cyan,
   },
   marketPattern: {
     height: layout.patternHeight,
@@ -259,9 +324,6 @@ const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsive
   },
   header: {
     gap: 9,
-  },
-  headerWithMenu: {
-    paddingTop: 37,
   },
   titleRow: {
     alignItems: 'center',
