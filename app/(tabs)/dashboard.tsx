@@ -62,6 +62,15 @@ type PerformanceTradeItem = {
   timestamp: string;
 };
 
+type AccountPerformanceState = {
+  accountId: string;
+  data: {
+    hasTotals: boolean;
+    realizedPl: number;
+    winRateLabel: string;
+  };
+};
+
 type AccountSnapshotState = {
   accountId: string;
   data: Record<string, unknown>;
@@ -70,6 +79,7 @@ type AccountSnapshotState = {
 export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
   const [snapshot, setSnapshot] = useState<AccountSnapshotState | null>(null);
+  const [performanceSummary, setPerformanceSummary] = useState<AccountPerformanceState | null>(null);
   const [trades, setTrades] = useState<TradeActivityItem[]>([]);
   const [performanceTrades, setPerformanceTrades] = useState<PerformanceTradeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -163,6 +173,38 @@ export default function DashboardScreen() {
     };
   }, [activeAccount]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPerformanceSummary = async () => {
+      if (!activeAccount) {
+        setPerformanceSummary(null);
+        return;
+      }
+
+      try {
+        const nextSummary = await loadAccountPerformanceSummary(activeAccount);
+
+        if (mounted) {
+          setPerformanceSummary({
+            accountId: activeAccount.id,
+            data: nextSummary,
+          });
+        }
+      } catch {
+        if (mounted) {
+          setPerformanceSummary(null);
+        }
+      }
+    };
+
+    loadPerformanceSummary();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeAccount]);
+
   const dashboardSnapshot = asRecord(dashboard?.account_snapshot || dashboard?.snapshot || dashboard?.account);
   const accountRecord = normalizeAccountSnapshot(activeAccount?.raw);
   const activeSnapshot = snapshot && activeAccount && snapshot.accountId === activeAccount.id ? snapshot.data : null;
@@ -183,7 +225,9 @@ export default function DashboardScreen() {
     [trades],
   );
   const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed);
-  const allTimePerformance = allTimePerformanceMetrics(scopedPerformanceTrades);
+  const fallbackPerformance = allTimePerformanceMetrics(scopedPerformanceTrades);
+  const activePerformanceSummary = performanceSummary && activeAccount && performanceSummary.accountId === activeAccount.id ? performanceSummary.data : null;
+  const allTimePerformance = activePerformanceSummary?.hasTotals ? activePerformanceSummary : fallbackPerformance;
   const equity = firstNumber(effectiveSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     firstNumber(brokerSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     0;
@@ -469,6 +513,33 @@ const loadAccountSnapshot = async (account: ManagedAccount) => {
   throw lastError || new Error('Account snapshot unavailable.');
 };
 
+const loadAccountPerformanceSummary = async (account: ManagedAccount) => {
+  const keys = [
+    firstString(account.raw, ['broker_account_ref', 'broker_account_id'], ''),
+    account.id,
+    firstString(account.raw, ['account_ref', 'account_id'], ''),
+    account.pathValue,
+  ].filter((key): key is string => Boolean(key));
+  const uniqueKeys = [...new Set(keys)];
+  let lastError: unknown = null;
+
+  for (const key of uniqueKeys) {
+    try {
+      return parsePerformanceSummary(await api.get<unknown>(`${endpoints.performanceSummary}?account=${encodeURIComponent(key)}`));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  try {
+    return parsePerformanceSummary(await api.get<unknown>(endpoints.performanceSummary));
+  } catch (error) {
+    lastError = error;
+  }
+
+  throw lastError || new Error('Performance summary unavailable.');
+};
+
 const normalizeAccountSnapshot = (value: unknown) => {
   const record = asRecord(value);
   const nested = asRecord(record.account_snapshot || record.snapshot || record.account || record.broker_account);
@@ -645,6 +716,22 @@ const allTimePerformanceMetrics = (trades: PerformanceTradeItem[]) => {
   const winRate = trades.length ? (trades.filter((trade) => trade.realizedPl > 0).length / trades.length) * 100 : 0;
 
   return {
+    hasTotals: trades.length > 0,
+    realizedPl,
+    winRateLabel: `${winRate.toFixed(2)}%`,
+  };
+};
+
+const parsePerformanceSummary = (response: unknown) => {
+  const root = asRecord(response);
+  const summary = asRecord(root.summary || root.performance || response);
+  const realizedPlValue = firstNumber(summary, ['realized_pl', 'realized_pnl', 'realized_profit_loss', 'profit_loss', 'pnl']);
+  const winRateValue = firstNumber(summary, ['win_rate', 'winRate', 'winning_rate', 'win_percentage']);
+  const realizedPl = realizedPlValue ?? 0;
+  const winRate = winRateValue ?? 0;
+
+  return {
+    hasTotals: typeof realizedPlValue === 'number' || typeof winRateValue === 'number',
     realizedPl,
     winRateLabel: `${winRate.toFixed(2)}%`,
   };
