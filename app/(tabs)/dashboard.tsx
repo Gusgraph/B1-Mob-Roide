@@ -53,9 +53,14 @@ type TradeActivityItem = {
   value: string;
 };
 
+type AccountSnapshotState = {
+  accountId: string;
+  data: Record<string, unknown>;
+};
+
 export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
-  const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [snapshot, setSnapshot] = useState<AccountSnapshotState | null>(null);
   const [positions, setPositions] = useState<Record<string, unknown>[]>([]);
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [trades, setTrades] = useState<TradeActivityItem[]>([]);
@@ -116,17 +121,27 @@ export default function DashboardScreen() {
         return;
       }
 
+      setSnapshot({
+        accountId: activeAccount.id,
+        data: normalizeAccountSnapshot(activeAccount.raw),
+      });
       setIsSnapshotLoading(true);
       setSnapshotError(null);
       try {
         const nextSnapshot = await loadAccountSnapshot(activeAccount);
 
         if (mounted) {
-          setSnapshot(nextSnapshot);
+          setSnapshot({
+            accountId: activeAccount.id,
+            data: nextSnapshot,
+          });
         }
       } catch (loadSnapshotError) {
         if (mounted) {
-          setSnapshot(asRecord(activeAccount.raw));
+          setSnapshot({
+            accountId: activeAccount.id,
+            data: normalizeAccountSnapshot(activeAccount.raw),
+          });
           setSnapshotError(customerSafeMessage(loadSnapshotError));
         }
       } finally {
@@ -145,7 +160,8 @@ export default function DashboardScreen() {
 
   const dashboardSnapshot = asRecord(dashboard?.account_snapshot || dashboard?.snapshot || dashboard?.account);
   const accountRecord = normalizeAccountSnapshot(activeAccount?.raw);
-  const effectiveSnapshot = firstRecord(snapshot, accountRecord, !activeAccount ? dashboardSnapshot : null);
+  const activeSnapshot = snapshot && activeAccount && snapshot.accountId === activeAccount.id ? snapshot.data : null;
+  const effectiveSnapshot = firstRecord(activeSnapshot, accountRecord, !activeAccount ? dashboardSnapshot : null);
   const brokerSnapshot = asRecord(effectiveSnapshot.broker);
   const products = asArray(dashboard?.active_products || dashboard?.products);
   const persistedDismissedAlertKeys = asArray<unknown>(dashboard?.dismissed_alert_keys).map((key) => String(key));
@@ -413,8 +429,8 @@ const isConnectedAccount = (account: ManagedAccount) => {
 
 const loadAccountSnapshot = async (account: ManagedAccount) => {
   const keys = [
-    account.id,
     firstString(account.raw, ['broker_account_ref', 'broker_account_id'], ''),
+    account.id,
     firstString(account.raw, ['account_ref', 'account_id'], ''),
     account.pathValue,
   ].filter((key): key is string => Boolean(key));
@@ -423,7 +439,25 @@ const loadAccountSnapshot = async (account: ManagedAccount) => {
 
   for (const key of uniqueKeys) {
     try {
-      return normalizeAccountSnapshot(await api.get<unknown>(endpoints.accountSnapshot(key)));
+      const brokerStatusSnapshot = normalizeAccountSnapshot(await api.get<unknown>(endpoints.brokerStatus(key)));
+
+      if (snapshotMatchesAccount(brokerStatusSnapshot, account)) {
+        return brokerStatusSnapshot;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  for (const key of uniqueKeys) {
+    try {
+      const accountSnapshot = normalizeAccountSnapshot(await api.get<unknown>(endpoints.accountSnapshot(key)));
+
+      if (snapshotMatchesAccount(accountSnapshot, account)) {
+        return accountSnapshot;
+      }
+
+      lastError = new Error('Account snapshot did not match the selected broker account.');
     } catch (error) {
       lastError = error;
     }
@@ -448,6 +482,22 @@ const normalizeAccountSnapshot = (value: unknown) => {
       last_sync: source.last_sync,
     },
   };
+};
+
+const snapshotMatchesAccount = (snapshot: Record<string, unknown>, account: ManagedAccount) => {
+  const possibleIds = accountIdentityValues(account);
+  const broker = asRecord(snapshot.broker);
+  const snapshotValues = [
+    firstString(snapshot, ['broker_account_ref', 'broker_account_id'], ''),
+    firstString(snapshot, ['account_ref', 'account_id', 'account'], ''),
+    firstString(snapshot, ['slot_number', 'account_slot', 'slot'], ''),
+    firstString(snapshot, ['account_label', 'account_name'], ''),
+    firstString(broker, ['broker_account_ref', 'broker_account_id'], ''),
+    firstString(broker, ['slot_number', 'account_slot', 'slot'], ''),
+    firstString(broker, ['account_label', 'account_name'], ''),
+  ].filter(Boolean);
+
+  return snapshotValues.some((value) => possibleIds.includes(value));
 };
 
 const firstRecord = (...values: unknown[]) => {
