@@ -182,7 +182,7 @@ export default function DashboardScreen() {
   );
   const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed);
   const openPositionsCount = accountCount(scopedPositions, hasScopedPositionFeed, effectiveSnapshot, ['open_positions_count', 'positions_count']);
-  const ordersCount = accountCount(scopedOrders, hasScopedOrderFeed, effectiveSnapshot, ['orders_count', 'open_orders_count']);
+  const ordersCount = accountCount(scopedOrders, hasScopedOrderFeed, effectiveSnapshot, ['orders_count', 'open_orders_count', 'pending_orders_count']);
   const equity = firstNumber(effectiveSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     firstNumber(brokerSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     0;
