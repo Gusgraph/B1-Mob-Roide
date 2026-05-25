@@ -53,6 +53,15 @@ type TradeActivityItem = {
   value: string;
 };
 
+type PerformanceTradeItem = {
+  accountLabel: string;
+  accountRef: string;
+  brokerAccountRef: string;
+  realizedPl: number;
+  slotNumber: string;
+  timestamp: string;
+};
+
 type AccountSnapshotState = {
   accountId: string;
   data: Record<string, unknown>;
@@ -61,9 +70,8 @@ type AccountSnapshotState = {
 export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
   const [snapshot, setSnapshot] = useState<AccountSnapshotState | null>(null);
-  const [positions, setPositions] = useState<Record<string, unknown>[]>([]);
-  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [trades, setTrades] = useState<TradeActivityItem[]>([]);
+  const [performanceTrades, setPerformanceTrades] = useState<PerformanceTradeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,20 +94,17 @@ export default function DashboardScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      const [, dashboardResponse, positionsResponse, ordersResponse, tradesResponse] = await Promise.all([
+      const [, dashboardResponse, tradesResponse] = await Promise.all([
         refreshAccounts(),
         api.get<unknown>(endpoints.dashboard),
-        api.get<unknown>(endpoints.positions),
-        api.get<unknown>(endpoints.orders),
         api.get<unknown>(endpoints.tradeActivity),
       ]);
       const nextDashboard = asRecord(dashboardResponse);
 
       setDashboard(nextDashboard);
       setDismissedAlertKeys(asArray<unknown>(nextDashboard.dismissed_alert_keys).map((key) => String(key)));
-      setPositions(parseRows(positionsResponse, ['positions', 'items']));
-      setOrders(parseRows(ordersResponse, ['orders', 'items']));
       setTrades(parseTradeActivity(tradesResponse));
+      setPerformanceTrades(parsePerformanceTrades(tradesResponse));
     } catch (loadError) {
       setError(customerSafeMessage(loadError));
     } finally {
@@ -171,18 +176,14 @@ export default function DashboardScreen() {
 
       return !alertKeys.some((key) => dismissedAlertKeys.includes(key) || persistedDismissedAlertKeys.includes(key));
     });
-  const scopedPositions = useMemo(() => filterRowsByAccount(positions, activeAccount), [activeAccount, positions]);
-  const scopedOrders = useMemo(() => filterRowsByAccount(orders, activeAccount), [activeAccount, orders]);
   const scopedTrades = useMemo(() => filterTradesByAccount(trades, activeAccount), [activeAccount, trades]);
-  const hasScopedPositionFeed = useMemo(() => positions.some(rowHasAccountIdentity), [positions]);
-  const hasScopedOrderFeed = useMemo(() => orders.some(rowHasAccountIdentity), [orders]);
+  const scopedPerformanceTrades = useMemo(() => filterPerformanceTradesByAccount(performanceTrades, activeAccount), [activeAccount, performanceTrades]);
   const hasScopedTradeFeed = useMemo(
     () => trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber),
     [trades],
   );
   const showTradeScopeNotice = Boolean(activeAccount && trades.length && !hasScopedTradeFeed);
-  const openPositionsCount = accountCount(scopedPositions, hasScopedPositionFeed, effectiveSnapshot, ['open_positions_count', 'positions_count']);
-  const ordersCount = accountCount(scopedOrders, hasScopedOrderFeed, effectiveSnapshot, ['orders_count', 'open_orders_count', 'pending_orders_count']);
+  const allTimePerformance = allTimePerformanceMetrics(scopedPerformanceTrades);
   const equity = firstNumber(effectiveSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     firstNumber(brokerSnapshot, ['equity', 'portfolio_value', 'balance']) ??
     0;
@@ -247,13 +248,15 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.compactMetric}>
-                <Text style={styles.metricLabel}>Open Positions</Text>
-                <Text style={styles.metricValue}>{String(openPositionsCount)}</Text>
+                <Text style={styles.metricLabel}>Total Account All Time: Realized P/L</Text>
+                <Text style={[styles.metricValue, allTimePerformance.realizedPl < 0 ? styles.negativeText : allTimePerformance.realizedPl > 0 ? styles.positiveText : null]}>
+                  {formatSignedMoney(allTimePerformance.realizedPl)}
+                </Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.compactMetric}>
-                <Text style={styles.metricLabel}>Orders</Text>
-                <Text style={styles.metricValue}>{String(ordersCount)}</Text>
+                <Text style={styles.metricLabel}>Win Rate</Text>
+                <Text style={styles.metricValue}>{allTimePerformance.winRateLabel}</Text>
               </View>
             </View>
           </Bismel1Card>
@@ -533,35 +536,6 @@ const mergeRecords = (...values: unknown[]) => {
   return Object.keys(merged).length ? merged : firstRecord(...values);
 };
 
-const accountCount = (
-  scopedRows: Record<string, unknown>[],
-  hasScopedFeed: boolean,
-  snapshot: Record<string, unknown>,
-  snapshotKeys: string[],
-) => {
-  const snapshotCount = firstNumber(snapshot, snapshotKeys);
-
-  if (hasScopedFeed) {
-    return scopedRows.length || snapshotCount || 0;
-  }
-
-  return snapshotCount ?? 0;
-};
-
-const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAccount | null) => {
-  if (!account) {
-    return rows;
-  }
-
-  const hasScopedIdentity = rows.some((row) => rowHasAccountIdentity(row));
-
-  if (!hasScopedIdentity) {
-    return [];
-  }
-
-  return rows.filter((row) => rowMatchesAccount(row, account));
-};
-
 const filterTradesByAccount = (trades: TradeActivityItem[], account: ManagedAccount | null) => {
   if (!account) {
     return trades;
@@ -576,22 +550,27 @@ const filterTradesByAccount = (trades: TradeActivityItem[], account: ManagedAcco
   return trades.filter((trade) => tradeMatchesAccount(trade, account));
 };
 
-const rowHasAccountIdentity = (row: Record<string, unknown>) =>
-  Boolean(firstString(row, ['account_ref', 'account_id', 'account', 'broker_account_ref', 'broker_account_id', 'slot_number', 'account_slot', 'slot'], ''));
+const filterPerformanceTradesByAccount = (trades: PerformanceTradeItem[], account: ManagedAccount | null) => {
+  if (!account) {
+    return trades;
+  }
 
-const rowMatchesAccount = (row: Record<string, unknown>, account: ManagedAccount) => {
-  const possibleIds = accountIdentityValues(account);
-  const rowValues = [
-    firstString(row, ['account_ref', 'account_id', 'account'], ''),
-    firstString(row, ['broker_account_ref', 'broker_account_id'], ''),
-    firstString(row, ['slot_number', 'account_slot', 'slot'], ''),
-    firstString(row, ['account_label', 'account_name'], ''),
-  ];
+  const hasScopedIdentity = trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber);
 
-  return rowValues.some((value) => value && possibleIds.includes(value));
+  if (!hasScopedIdentity) {
+    return account.pathValue === '1' ? trades : [];
+  }
+
+  return trades.filter((trade) => performanceTradeMatchesAccount(trade, account));
 };
 
 const tradeMatchesAccount = (trade: TradeActivityItem, account: ManagedAccount) => {
+  const possibleIds = accountIdentityValues(account);
+
+  return [trade.accountRef, trade.brokerAccountRef, trade.slotNumber, trade.accountLabel].some((value) => value && possibleIds.includes(value));
+};
+
+const performanceTradeMatchesAccount = (trade: PerformanceTradeItem, account: ManagedAccount) => {
   const possibleIds = accountIdentityValues(account);
 
   return [trade.accountRef, trade.brokerAccountRef, trade.slotNumber, trade.accountLabel].some((value) => value && possibleIds.includes(value));
@@ -633,6 +612,42 @@ const parseTradeActivity = (response: unknown): TradeActivityItem[] => {
     })
     .filter((trade) => trade.timestamp)
     .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp));
+};
+
+const parsePerformanceTrades = (response: unknown): PerformanceTradeItem[] => {
+  const rows = parseRows(response, ['activity', 'trades', 'items']);
+
+  return rows
+    .map((row) => {
+      const timestamp = firstString(row, ['timestamp', 'created_at', 'filled_at', 'closed_at', 'time'], '');
+      const realizedPl = firstNumber(row, ['realized_pl', 'realized_pnl', 'pnl', 'profit_loss']);
+      const flow = firstString(row, ['flow', 'lifecycle', 'position_flow', 'event', 'type', 'status', 'label'], '').toLowerCase();
+      const isClosedTrade = flow.includes('exit') || flow.includes('close') || flow.includes('closed') || flow.includes('sell') || typeof realizedPl === 'number';
+
+      if (!isClosedTrade || typeof realizedPl !== 'number' || !timestamp || Number.isNaN(Date.parse(timestamp))) {
+        return null;
+      }
+
+      return {
+        accountLabel: firstString(row, ['account_label', 'account_name'], ''),
+        accountRef: firstString(row, ['account_ref', 'account_id', 'account'], ''),
+        brokerAccountRef: firstString(row, ['broker_account_ref', 'broker_account_id'], ''),
+        realizedPl,
+        slotNumber: firstString(row, ['slot_number', 'account_slot', 'slot'], ''),
+        timestamp,
+      };
+    })
+    .filter((trade): trade is PerformanceTradeItem => Boolean(trade));
+};
+
+const allTimePerformanceMetrics = (trades: PerformanceTradeItem[]) => {
+  const realizedPl = trades.reduce((sum, trade) => sum + trade.realizedPl, 0);
+  const winRate = trades.length ? (trades.filter((trade) => trade.realizedPl > 0).length / trades.length) * 100 : 0;
+
+  return {
+    realizedPl,
+    winRateLabel: `${winRate.toFixed(2)}%`,
+  };
 };
 
 const normalizeTradeSide = (item: Record<string, unknown>) => {
@@ -959,6 +974,12 @@ const makeStyles = (colors: ThemeColors, width: number, height: number) => {
     color: colors.text,
     fontSize: isTvWide ? 27 : isWide ? 23 : 19,
     fontWeight: '900',
+  },
+  positiveText: {
+    color: colors.success,
+  },
+  negativeText: {
+    color: colors.danger,
   },
   dataCard: {
     borderColor: colors.cyan,
