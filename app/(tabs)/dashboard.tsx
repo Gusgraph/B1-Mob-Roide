@@ -519,7 +519,6 @@ const loadAccountPerformanceSummary = async (account: ManagedAccount) => {
   const summaryPaths = [
     brokerAccountRef ? `${endpoints.performanceSummary}?broker_account_ref=${encodeURIComponent(brokerAccountRef)}` : '',
     accountSlot ? `${endpoints.performanceSummary}?account_slot=${encodeURIComponent(accountSlot)}` : '',
-    endpoints.performanceSummary,
   ].filter(Boolean);
   const uniquePaths = [...new Set(summaryPaths)];
   let lastError: unknown = null;
