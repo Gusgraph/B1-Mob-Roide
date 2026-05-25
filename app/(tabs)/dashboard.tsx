@@ -161,7 +161,7 @@ export default function DashboardScreen() {
   const dashboardSnapshot = asRecord(dashboard?.account_snapshot || dashboard?.snapshot || dashboard?.account);
   const accountRecord = normalizeAccountSnapshot(activeAccount?.raw);
   const activeSnapshot = snapshot && activeAccount && snapshot.accountId === activeAccount.id ? snapshot.data : null;
-  const effectiveSnapshot = firstRecord(activeSnapshot, accountRecord, !activeAccount ? dashboardSnapshot : null);
+  const effectiveSnapshot = mergeRecords(accountRecord, activeSnapshot, !activeAccount ? dashboardSnapshot : null);
   const brokerSnapshot = asRecord(effectiveSnapshot.broker);
   const products = asArray(dashboard?.active_products || dashboard?.products);
   const persistedDismissedAlertKeys = asArray<unknown>(dashboard?.dismissed_alert_keys).map((key) => String(key));
@@ -512,17 +512,40 @@ const firstRecord = (...values: unknown[]) => {
   return {};
 };
 
+const mergeRecords = (...values: unknown[]) => {
+  const merged = values.reduce<Record<string, unknown>>((current, value) => {
+    const record = asRecord(value);
+
+    if (!Object.keys(record).length) {
+      return current;
+    }
+
+    return {
+      ...current,
+      ...record,
+      broker: {
+        ...asRecord(current.broker),
+        ...asRecord(record.broker),
+      },
+    };
+  }, {});
+
+  return Object.keys(merged).length ? merged : firstRecord(...values);
+};
+
 const accountCount = (
   scopedRows: Record<string, unknown>[],
   hasScopedFeed: boolean,
   snapshot: Record<string, unknown>,
   snapshotKeys: string[],
 ) => {
+  const snapshotCount = firstNumber(snapshot, snapshotKeys);
+
   if (hasScopedFeed) {
-    return scopedRows.length;
+    return scopedRows.length || snapshotCount || 0;
   }
 
-  return firstNumber(snapshot, snapshotKeys) ?? 0;
+  return snapshotCount ?? 0;
 };
 
 const filterRowsByAccount = (rows: Record<string, unknown>[], account: ManagedAccount | null) => {
@@ -882,9 +905,9 @@ const makeStyles = (colors: ThemeColors, width: number, height: number) => {
     paddingVertical: 7,
   },
   accountChipActive: {
-    borderColor: colors.warning,
+    borderColor: colors.cyan,
     borderWidth: 2,
-    shadowColor: colors.warning,
+    shadowColor: colors.cyan,
     shadowOpacity: 0.23,
     shadowRadius: 11,
   },
@@ -894,7 +917,7 @@ const makeStyles = (colors: ThemeColors, width: number, height: number) => {
     fontWeight: '900',
   },
   accountChipTextActive: {
-    color: colors.warning,
+    color: colors.success,
   },
   accountMeta: {
     color: colors.textMuted,

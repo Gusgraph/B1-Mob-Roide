@@ -74,7 +74,7 @@ export function AppShell({ title, subtitle, scroll = true, headerAccessory, show
                       onPress={() => router.push(item.href as never)}
                       style={[styles.headerNavButton, active && styles.headerNavButtonActive]}
                     >
-                      <item.icon color={active ? colors.warning : colors.textMuted} size={19} />
+                      <item.icon color={active ? colors.success : colors.textMuted} size={19} />
                     </Pressable>
                   );
                 })}
@@ -294,9 +294,9 @@ const makeStyles = (colors: ThemeColors, layout: ReturnType<typeof getResponsive
   },
   headerNavButtonActive: {
     backgroundColor: colors.surface,
-    borderColor: colors.warning,
+    borderColor: colors.cyan,
     borderWidth: 2,
-    shadowColor: colors.warning,
+    shadowColor: colors.cyan,
     shadowOpacity: 0.37,
     shadowRadius: 13,
   },
