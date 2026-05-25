@@ -133,13 +133,13 @@ export default function BrokerAccountsScreen() {
 
   const disconnectWarning = (account: Record<string, unknown> | null) => {
     if (disconnectBlocked(account)) {
-      return 'Open positions or pending orders stay open. Review positions and orders before disconnecting this account.';
+      return 'Open positions and pending orders may remain active. Review Positions and Orders before disconnecting this trading account.';
     }
 
     return firstString(
       asRecord(account),
       ['disconnect_warning', 'warning', 'confirmation_message'],
-      'Disconnect this broker account through Bismel1. Automation using this account may stop.',
+      'Disconnect this trading account from Bismel1. Automation using this account may stop.',
     );
   };
 
@@ -244,7 +244,7 @@ export default function BrokerAccountsScreen() {
         message={disconnectWarning(disconnectTarget)}
         onCancel={() => setDisconnectTarget(null)}
         onConfirm={disconnectBlocked(disconnectTarget) ? () => setDisconnectTarget(null) : disconnect}
-        title="Disconnect Broker"
+        title="Disconnect Trading Account"
         visible={Boolean(disconnectTarget)}
       />
     </AppShell>

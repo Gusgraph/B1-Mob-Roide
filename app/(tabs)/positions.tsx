@@ -59,7 +59,7 @@ export default function PositionsScreen() {
       firstString(
         asRecord(selected),
         ['manual_close_warning', 'warning', 'confirmation_message'],
-        'Confirm manual close through Bismel1. This action is submitted to Laravel and cannot be undone from the app.',
+        'Review this position before closing. If you continue, Bismel1 will send the close request through your selected trading account.',
       ),
     [selected],
   );
@@ -171,7 +171,7 @@ export default function PositionsScreen() {
         message={warning}
         onCancel={() => setSelected(null)}
         onConfirm={closeSelected}
-        title="Confirm Manual Close"
+        title="Confirm Close Position"
         visible={Boolean(selected)}
       />
     </AppShell>

@@ -101,7 +101,7 @@ export default function SettingsScreen() {
                 value={email}
               />
             </View>
-            <DataRow label="Email Status" value={emailVerified ? 'Verified' : 'Unverified'} tone={emailVerified ? 'success' : 'warning'} />
+            <DataRow label="Email Status" value={emailVerified ? 'Verified' : 'Needs verification'} tone={emailVerified ? 'success' : 'warning'} />
             {profileMessage ? <Text style={styles.successText}>{profileMessage}</Text> : null}
             <Pressable
               accessibilityRole="button"

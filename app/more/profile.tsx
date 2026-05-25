@@ -61,7 +61,7 @@ export default function ProfileScreen() {
           <UserRound color={colors.accent} size={19} />
           <Text style={styles.title}>{firstString(profileUser, ['name'], user?.name || 'Bismel1 Customer')}</Text>
           <Text style={styles.text}>{firstString(profileUser, ['email'], user?.email || 'Email unavailable')}</Text>
-          <DataRow label="Email Status" value={profileUser.email_verified === true ? 'Verified' : 'Unverified'} tone={profileUser.email_verified === true ? 'success' : 'warning'} />
+          <DataRow label="Email Status" value={profileUser.email_verified === true ? 'Verified' : 'Needs verification'} tone={profileUser.email_verified === true ? 'success' : 'warning'} />
           <DataRow label="Account" value={firstString(selectedAccount, ['label'], 'Unavailable')} />
           <DataRow label="Access" value={firstString(selectedAccount, ['status'], 'Unavailable')} tone={selectedAccount.status === 'active' ? 'success' : 'warning'} />
           <DataRow label="Products" value={activeProducts.map((product) => firstString(product, ['name', 'code'], '')).filter(Boolean).join(', ') || 'Unavailable'} />

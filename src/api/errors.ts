@@ -24,9 +24,9 @@ export class ApiError extends Error {
 
 export const customerSafeMessage = (error: unknown) => {
   if (error instanceof ApiError) {
-    return error.message;
+    return 'Connection error.';
   }
 
-  return 'Unable to complete the request. Please try again.';
+  return 'Connection failed. Try again.';
 };
 

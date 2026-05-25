@@ -250,7 +250,7 @@ export default function PerformanceScreen() {
             </View>
 
             {shouldShowAccountScopeNotice ? (
-              <EmptyState message="Account-specific performance is not available for this connected account yet." />
+              <EmptyState message="Performance data is not available for this account yet." />
             ) : points.length ? (
               <View style={styles.chartPanel}>
                 <View style={styles.chartFrame}>

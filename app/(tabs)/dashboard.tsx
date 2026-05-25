@@ -232,7 +232,7 @@ export default function DashboardScreen() {
                 </Pressable>
               ))}
             </View>
-            {snapshotError ? <Text style={styles.scopeNote}>Snapshot route blocked for this account: {snapshotError}</Text> : null}
+            {snapshotError ? <Text style={styles.scopeNote}>Connection error. This account snapshot could not be loaded.</Text> : null}
           </Bismel1Card>
 
           <Bismel1Card style={styles.compactMetricsCard}>
@@ -295,7 +295,7 @@ export default function DashboardScreen() {
                 <Activity color={colors.purple} size={19} />
                 <Text style={styles.cardTitle}>Latest Trading Activity</Text>
               </View>
-              {showTradeScopeNotice ? <Text style={styles.scopeNote}>Trade activity feed is not account-scoped for this connected account yet.</Text> : null}
+              {showTradeScopeNotice ? <Text style={styles.scopeNote}>Trade activity is not available for this account yet.</Text> : null}
               {scopedTrades.length ? (
                 scopedTrades.slice(0, 5).map((trade, index) => (
                   <View key={`${trade.timestamp}-${trade.symbol}-${index}`} style={styles.activityRow}>

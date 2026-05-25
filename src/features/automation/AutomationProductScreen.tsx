@@ -100,7 +100,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
   const systemState = asRecord(automation?.system_state);
   const strategyStatus = asRecord(automation?.strategy_status);
   const runtimeWindow = asRecord(automation?.runtime_window);
-  // TODO: Keep the honest empty state until Laravel always returns runtime_window.work_feed.
+  // TODO: Keep the honest empty state until runtime_window.work_feed is always returned.
   const workFeed = asArray(runtimeWindow.work_feed).map(asRecord);
   const automationEnabled = automation?.automation_enabled === true || accountSlot.automation_enabled === true;
   const canUseControls = Boolean(assignedAccount?.pathValue && automation);
@@ -213,7 +213,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
                 );
               })
             ) : (
-              <Text style={styles.text}>{isLoadingAccounts ? 'Loading accounts' : accountsError || 'No connected accounts available.'}</Text>
+              <Text style={styles.text}>{isLoadingAccounts ? 'Loading accounts' : accountsError ? 'Connection error.' : 'No trading accounts are connected yet.'}</Text>
             )}
           </View>
         ) : null}
@@ -222,7 +222,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
       {isLoading && !automation ? <LoadingState label="Loading product" /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && !assignedAccount ? <EmptyState message="Assign an account to this product." /> : null}
-      {!isLoading && !error && assignedAccount && !assignedAccount.pathValue ? <EmptyState message="This account is not available for automation yet." /> : null}
+      {!isLoading && !error && assignedAccount && !assignedAccount.pathValue ? <EmptyState message="This account is not ready for automation yet." /> : null}
       {!isLoading && !error && assignedAccount?.pathValue && !automation ? <EmptyState message="No automation data returned." /> : null}
 
       {automation ? (
@@ -232,13 +232,13 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
               <View style={styles.cardHeader}>
                 <Bot color={colors.accent} size={19} />
                 <Text style={styles.title}>{firstString(product, ['product_name', 'name'], title)}</Text>
-                <StatusBadge label={automationEnabled ? 'Automation On' : 'Automation Off'} status={automationEnabled ? 'success' : 'warning'} />
+                <StatusBadge label={automationEnabled ? 'Automation On' : 'Automation off'} status={automationEnabled ? 'success' : 'warning'} />
               </View>
               <View style={styles.metricsGrid}>
-                <DataRow label="Broker status" value={brokerStatus.ready === true ? 'Ready' : 'Needs setup'} tone={brokerStatus.ready === true ? 'success' : 'warning'} />
-                <Text style={styles.cardBody}>{brokerStatus.ready === true ? 'Trading account is connected and available for this product lane.' : 'Connect and verify a trading account before enabling automation.'}</Text>
-                <DataRow label="System state" value={automationEnabled ? 'Automation On' : 'Automation Off'} tone={automationEnabled ? 'success' : 'warning'} />
-                <Text style={styles.cardBody}>{automationEnabled ? 'B1 is monitoring the selected symbols for this product lane.' : 'Automation is off. Symbols remain saved, but B1 is not actively monitoring this slot.'}</Text>
+                <DataRow label="Broker status" value={brokerStatus.ready === true ? 'Ready' : 'Setup needed'} tone={brokerStatus.ready === true ? 'success' : 'warning'} />
+                <Text style={styles.cardBody}>{brokerStatus.ready === true ? 'Trading account is connected and available for this product lane.' : 'Connect and verify a trading account before turning automation on.'}</Text>
+                <DataRow label="System state" value={automationEnabled ? 'Automation On' : 'Automation off'} tone={automationEnabled ? 'success' : 'warning'} />
+                <Text style={styles.cardBody}>{automationEnabled ? 'B1 is monitoring the selected symbols for this product lane.' : 'Automation is off. Symbols remain saved, but Bismel1 is not watching this account right now.'}</Text>
                 <DataRow label="Strategy status" value={formatStrategyStatus(firstString(strategyStatus, ['status'], 'Waiting for runtime'))} />
                 <DataRow label="Automation Mode" value={firstString(accountSlot, ['mode'], 'Unavailable')} />
                 <DataRow label="Last System Update" value={formatDateTime(systemState.settings_updated_at || systemState.last_runtime_at)} />
@@ -419,31 +419,31 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
       <ConfirmSheet
         confirmLabel="Remove"
         isLoading={isWorking}
-        message={pendingRemoveHasWarning ? 'This symbol has an open position or pending order. Review positions and orders before removing it.' : removeWarning}
+        message={pendingRemoveHasWarning ? 'This symbol may have an open position or pending order. Review Positions and Orders before removing it.' : removeWarning}
         onCancel={() => {
           setPendingRemove(null);
           setRemoveApiWarning(null);
         }}
         onConfirm={removeSymbol}
-        title="Confirm Remove"
+        title="Remove Symbol?"
         visible={Boolean(pendingRemove)}
       />
       <ConfirmSheet
         confirmLabel={pendingAutomationConfirm?.enabled ? 'Turn On' : 'Turn Off'}
         isLoading={isWorking}
-        message={pendingAutomationConfirm?.message || 'Confirm automation change.'}
+        message={pendingAutomationConfirm?.message || 'Review this change before updating automation.'}
         onCancel={() => setPendingAutomationConfirm(null)}
         onConfirm={confirmToggleAutomation}
-        title="Confirm Automation"
+        title="Confirm Automation Change"
         visible={Boolean(pendingAutomationConfirm)}
       />
       <ConfirmSheet
         confirmLabel={pendingToggleActive ? 'Pause' : 'Resume'}
         isLoading={isWorking}
-        message={`${pendingToggleActive ? 'Pause' : 'Resume'} ${pendingToggleCode}. Open positions stay open. This only changes whether the symbol is included in future automation checks.`}
+        message={`${pendingToggleActive ? 'Pause' : 'Resume'} monitoring for ${pendingToggleCode}. Open positions remain open. This only changes whether the symbol is included in future automation checks.`}
         onCancel={() => setPendingSymbolToggle(null)}
         onConfirm={confirmToggleSymbol}
-        title="Confirm Symbol Mode"
+        title="Update Symbol Monitoring?"
         visible={Boolean(pendingSymbolToggle)}
       />
     </AppShell>
@@ -505,7 +505,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
     setPendingAutomationConfirm({
       enabled: !automationEnabled,
       confirmLive: false,
-      message: `${automationEnabled ? 'Turn automation off' : 'Turn automation on'} for ${title}. Open positions stay open. This does not close positions or place broker orders directly.`,
+      message: `${automationEnabled ? 'Turn automation off' : 'Turn automation on'} for ${title}. Open positions remain open. This change only updates automation monitoring for future checks.`,
     });
   }
 
@@ -560,7 +560,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
       await loadProduct();
     } catch (removeError) {
       if (removeError instanceof ApiError && removeError.status === 409 && removeError.code === 'symbol_remove_warning_required') {
-        setRemoveApiWarning(removeError.message);
+        setRemoveApiWarning('This symbol may have an open position or pending order. Review Positions and Orders before removing it.');
         return;
       }
 
@@ -591,7 +591,7 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
         setPendingAutomationConfirm({
           enabled: pendingAutomationConfirm.enabled,
           confirmLive: true,
-          message: confirmError.message,
+          message: `${pendingAutomationConfirm.enabled ? 'Turn automation on' : 'Turn automation off'} for ${title}. Open positions remain open. This change only updates automation monitoring for future checks.`,
         });
         return;
       }
@@ -648,8 +648,8 @@ function B1RuntimeWindow({
     <View style={styles.workFeed}>
       {groupedWorkFeed.length ? (
         visibleWorkFeed.map((row, index) => {
-          const stage = formatRuntimeStage(firstString(row, ['stage', 'stage_label', 'status'], 'Needs Review'));
-          const message = formatRuntimeMessage(firstString(row, ['message', 'safe_result', 'result', 'summary'], 'Needs Review'));
+          const stage = formatRuntimeStage(firstString(row, ['stage', 'stage_label', 'status'], 'Needs review'));
+          const message = formatRuntimeMessage(firstString(row, ['message', 'safe_result', 'result', 'summary'], 'Needs review'));
           const status = formatRuntimeStatus(firstString(row, ['status', 'tone'], 'completed'));
           const tone = runtimeStatusTone(status);
 
@@ -670,7 +670,7 @@ function B1RuntimeWindow({
         })
       ) : (
         <View style={styles.workFeedEmpty}>
-          <Text style={styles.workFeedEmptyTitle}>Background work feed is not available yet.</Text>
+          <Text style={styles.workFeedEmptyTitle}>Background activity is not available yet.</Text>
           <Text style={styles.workFeedEmptyText}>{emptyMessage}</Text>
         </View>
       )}
@@ -695,7 +695,7 @@ const formatStrategyStatus = (value: string) => {
   }
 
   if (status.includes('block')) {
-    return 'Blocked';
+    return 'Needs review';
   }
 
   if (status.includes('skip')) {
@@ -812,7 +812,7 @@ const groupRuntimeWorkFeed = (rows: Record<string, unknown>[]) => {
 
   rows.forEach((row) => {
     const symbol = formatRuntimeSymbol(firstString(row, ['symbol', 'scope'], 'ACCOUNT'));
-    const stage = formatRuntimeStage(firstString(row, ['stage', 'stage_label', 'status'], 'Needs Review'));
+    const stage = formatRuntimeStage(firstString(row, ['stage', 'stage_label', 'status'], 'Needs review'));
     const key = `${symbol}:${stage}`;
     const existing = grouped.get(key);
 
@@ -832,7 +832,7 @@ const groupRuntimeWorkFeed = (rows: Record<string, unknown>[]) => {
 
     return {
       ...row,
-      message: `Reviewed ${count} times today. Latest result: ${formatRuntimeMessage(firstString(row, ['message', 'safe_result', 'result', 'summary'], 'Needs Review'))}.`,
+      message: `Reviewed ${count} times today. Latest result: ${formatRuntimeMessage(firstString(row, ['message', 'safe_result', 'result', 'summary'], 'Needs review'))}.`,
     };
   });
 };
@@ -900,7 +900,7 @@ const formatRuntimeStage = (value: string) => {
     return 'Scanning';
   }
 
-  return 'Needs Review';
+  return 'Needs review';
 };
 
 const formatRuntimeMessage = (value: string) => {
@@ -989,7 +989,7 @@ const formatRuntimeStatus = (value: string) => {
   }
 
   if (status.includes('review') || status.includes('need') || status.includes('warning')) {
-    return 'Needs Review';
+    return 'Needs review';
   }
 
   return 'Completed';
