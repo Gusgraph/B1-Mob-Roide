@@ -514,27 +514,22 @@ const loadAccountSnapshot = async (account: ManagedAccount) => {
 };
 
 const loadAccountPerformanceSummary = async (account: ManagedAccount) => {
-  const keys = [
-    firstString(account.raw, ['broker_account_ref', 'broker_account_id'], ''),
-    account.id,
-    firstString(account.raw, ['account_ref', 'account_id'], ''),
-    account.pathValue,
-  ].filter((key): key is string => Boolean(key));
-  const uniqueKeys = [...new Set(keys)];
+  const brokerAccountRef = firstString(account.raw, ['broker_account_ref', 'broker_account_id'], '');
+  const accountSlot = firstString(account.raw, ['slot_number', 'account_slot', 'slot'], account.pathValue || '');
+  const summaryPaths = [
+    brokerAccountRef ? `${endpoints.performanceSummary}?broker_account_ref=${encodeURIComponent(brokerAccountRef)}` : '',
+    accountSlot ? `${endpoints.performanceSummary}?account_slot=${encodeURIComponent(accountSlot)}` : '',
+    endpoints.performanceSummary,
+  ].filter(Boolean);
+  const uniquePaths = [...new Set(summaryPaths)];
   let lastError: unknown = null;
 
-  for (const key of uniqueKeys) {
+  for (const path of uniquePaths) {
     try {
-      return parsePerformanceSummary(await api.get<unknown>(`${endpoints.performanceSummary}?account=${encodeURIComponent(key)}`));
+      return parsePerformanceSummary(await api.get<unknown>(path));
     } catch (error) {
       lastError = error;
     }
-  }
-
-  try {
-    return parsePerformanceSummary(await api.get<unknown>(endpoints.performanceSummary));
-  } catch (error) {
-    lastError = error;
   }
 
   throw lastError || new Error('Performance summary unavailable.');
