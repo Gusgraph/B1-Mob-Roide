@@ -9,35 +9,58 @@
 // - File Path: _layout.tsx - app/_layout.tsx
 // =====================================================
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import '@/theme/textScale';
 import { AccountProvider } from '@/accounts/AccountProvider';
 import { AuthProvider } from '@/auth/AuthProvider';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 function RootStack() {
   const { colors, isDark } = useTheme();
+  const [splashHidden, setSplashHidden] = useState(false);
+
+  const hideSplash = useCallback(() => {
+    if (splashHidden) {
+      return;
+    }
+
+    setSplashHidden(true);
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, [splashHidden]);
+
+  useEffect(() => {
+    const fallback = setTimeout(hideSplash, 1300);
+
+    return () => clearTimeout(fallback);
+  }, [hideSplash]);
 
   return (
-    <AuthProvider>
-      <AccountProvider>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Stack
-          screenOptions={{
-            contentStyle: { backgroundColor: colors.background },
-            headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.text,
-            headerTitleStyle: { fontWeight: '700' },
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="engine" options={{ headerShown: false }} />
-          <Stack.Screen name="more" options={{ headerShown: false }} />
-        </Stack>
-      </AccountProvider>
-    </AuthProvider>
+    <View onLayout={hideSplash} style={{ backgroundColor: colors.background, flex: 1 }}>
+      <AuthProvider>
+        <AccountProvider>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <Stack
+            screenOptions={{
+              contentStyle: { backgroundColor: colors.background },
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="engine" options={{ headerShown: false }} />
+            <Stack.Screen name="more" options={{ headerShown: false }} />
+          </Stack>
+        </AccountProvider>
+      </AuthProvider>
+    </View>
   );
 }
 
