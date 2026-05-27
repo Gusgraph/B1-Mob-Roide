@@ -35,11 +35,24 @@ import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 const accountKey = (account: Record<string, unknown>) =>
   firstString(account, ['broker_account_ref', 'account_ref', 'uuid', 'id', 'broker_account_id'], 'broker-account');
 
+const nextAvailableSlot = (accounts: Record<string, unknown>[]) => {
+  const usedSlots = new Set(accounts.map((account) => firstNumber(account, ['slot_number'])).filter(Boolean));
+
+  for (let slot = 1; slot <= 19; slot += 1) {
+    if (!usedSlots.has(slot)) {
+      return slot;
+    }
+  }
+
+  return 19;
+};
+
 export default function BrokerAccountsScreen() {
   const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [accounts, setAccounts] = useState<Record<string, unknown>[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
+  const [environment, setEnvironment] = useState<'paper' | 'live'>('paper');
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
   const [disconnectTarget, setDisconnectTarget] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +88,10 @@ export default function BrokerAccountsScreen() {
   }, []);
 
   const connectAction = asRecord(asRecord(response?.actions).connect_alpaca);
-  const connectAllowed = response?.can_connect_alpaca === true || connectAction.enabled === true;
+  const connectBlocked = response?.can_connect_alpaca === false || connectAction.enabled === false;
+  const connectAllowed = Boolean(response) && !connectBlocked;
+  const nextSlotNumber = firstNumber(connectAction, ['next_slot_number', 'next_account_slot', 'slot_number'])
+    || nextAvailableSlot(accounts);
   const canSubmitConnect = connectAllowed && apiKey.trim() && apiSecret.trim() && !isSubmitting;
 
   const connect = async () => {
@@ -83,8 +99,10 @@ export default function BrokerAccountsScreen() {
     setError(null);
     try {
       await api.post(endpoints.connectAlpaca, {
-        api_key: apiKey.trim(),
-        api_secret: apiSecret,
+        account_slot: nextSlotNumber,
+        environment,
+        access_key_id: apiKey.trim(),
+        access_secret: apiSecret,
       });
       setApiKey('');
       setApiSecret('');
@@ -207,7 +225,27 @@ export default function BrokerAccountsScreen() {
           <Bismel1Card>
             <LinkIcon color={colors.success} size={19} />
             <Text style={styles.title}>Connect Alpaca</Text>
-            {connectAction.next_slot_number ? <DataRow label="Next Account" value={`Account ${String(connectAction.next_slot_number)}`} /> : null}
+            <DataRow label="Next Account" value={`Account ${String(nextSlotNumber)}`} />
+            <View style={styles.field}>
+              <Text style={styles.label}>Environment</Text>
+              <View style={styles.segmentRow}>
+                {(['paper', 'live'] as const).map((value) => {
+                  const active = environment === value;
+
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => setEnvironment(value)}
+                      style={[styles.segmentButton, active && styles.segmentButtonActive]}
+                    >
+                      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                        {value === 'paper' ? 'Paper' : 'Live'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
             <View style={styles.field}>
               <Text style={styles.label}>API Key</Text>
               <TextInput
@@ -273,6 +311,35 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.text,
     fontSize: typography.body,
     padding: spacing.md,
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  segmentButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 9,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 43,
+    paddingHorizontal: 13,
+  },
+  segmentButtonActive: {
+    borderColor: colors.cyan,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.27,
+    shadowRadius: 11,
+  },
+  segmentText: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    fontWeight: '800',
+  },
+  segmentTextActive: {
+    color: colors.cyan,
   },
   selectorGrid: {
     flexDirection: 'row',

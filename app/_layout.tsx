@@ -11,7 +11,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import '@/theme/textScale';
 import { AccountProvider } from '@/accounts/AccountProvider';
@@ -22,21 +22,27 @@ void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootStack() {
   const { colors, isDark } = useTheme();
-  const [splashHidden, setSplashHidden] = useState(false);
+  const splashHiddenRef = useRef(false);
 
   const hideSplash = useCallback(() => {
-    if (splashHidden) {
+    if (splashHiddenRef.current) {
       return;
     }
 
-    setSplashHidden(true);
+    splashHiddenRef.current = true;
     void SplashScreen.hideAsync().catch(() => undefined);
-  }, [splashHidden]);
+  }, []);
 
   useEffect(() => {
-    const fallback = setTimeout(hideSplash, 1300);
+    hideSplash();
 
-    return () => clearTimeout(fallback);
+    const quickFallback = setTimeout(hideSplash, 300);
+    const finalFallback = setTimeout(hideSplash, 1300);
+
+    return () => {
+      clearTimeout(quickFallback);
+      clearTimeout(finalFallback);
+    };
   }, [hideSplash]);
 
   return (
