@@ -8,13 +8,14 @@
 // - https://Gusgraph.com
 // - File Path: login.tsx - app/(auth)/login.tsx
 // =====================================================
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Eye, EyeOff, LogIn, Mail, Shield } from 'lucide-react-native';
+import { Check, Eye, EyeOff, LogIn, Mail, Shield } from 'lucide-react-native';
 import { AppShell } from '@/components/AppShell';
 import { ErrorState } from '@/components/ErrorState';
 import { ResponsiveGrid } from '@/components/ResponsiveGrid';
 import { useAuth } from '@/auth/useAuth';
+import { loginPreferenceStore } from '@/auth/loginPreferenceStore';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
@@ -25,14 +26,41 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRememberedEmail = async () => {
+      const rememberedEmail = await loginPreferenceStore.getRememberedEmail();
+
+      if (mounted && rememberedEmail) {
+        setEmail(rememberedEmail);
+        setRememberEmail(true);
+      }
+    };
+
+    loadRememberedEmail();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const submit = async () => {
     setIsSubmitting(true);
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
-      await login(email.trim().toLowerCase(), password.trim());
+      await login(normalizedEmail, password);
+      if (rememberEmail) {
+        await loginPreferenceStore.setRememberedEmail(normalizedEmail);
+      } else {
+        await loginPreferenceStore.clearRememberedEmail();
+      }
       setPassword('');
     } finally {
       setIsSubmitting(false);
@@ -52,12 +80,15 @@ export default function LoginScreen() {
           </View>
           <TextInput
             autoCapitalize="none"
-            autoComplete="email"
+            autoComplete="username"
             autoCorrect={false}
+            importantForAutofill="yes"
             keyboardType="email-address"
             onChangeText={setEmail}
+            onSubmitEditing={() => undefined}
             placeholder="email@example.com"
             placeholderTextColor={colors.textMuted}
+            returnKeyType="next"
             style={styles.input}
             textContentType="username"
             value={email}
@@ -73,9 +104,16 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoComplete="current-password"
               autoCorrect={false}
+              importantForAutofill="yes"
               onChangeText={setPassword}
+              onSubmitEditing={() => {
+                if (!disabled) {
+                  void submit();
+                }
+              }}
               placeholder="Password"
               placeholderTextColor={colors.textMuted}
+              returnKeyType="done"
               secureTextEntry={!passwordVisible}
               spellCheck={false}
               style={[styles.input, styles.passwordInput]}
@@ -96,6 +134,24 @@ export default function LoginScreen() {
             </Pressable>
           </View>
         </View>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: rememberEmail }}
+          onPress={async () => {
+            const nextValue = !rememberEmail;
+            setRememberEmail(nextValue);
+
+            if (!nextValue) {
+              await loginPreferenceStore.clearRememberedEmail();
+            }
+          }}
+          style={styles.rememberRow}
+        >
+          <View style={[styles.checkbox, rememberEmail && styles.checkboxActive]}>
+            {rememberEmail ? <Check color={colors.black} size={13} strokeWidth={3} /> : null}
+          </View>
+          <Text style={styles.rememberText}>Remember email on this device</Text>
+        </Pressable>
         {authError ? <ErrorState message={authError} /> : null}
         <Pressable
           accessibilityRole="button"
@@ -162,6 +218,31 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     right: 7,
     top: 7,
     width: 43,
+  },
+  rememberRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+    marginTop: -3,
+  },
+  checkbox: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 23,
+    justifyContent: 'center',
+    width: 23,
+  },
+  checkboxActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.cyan,
+  },
+  rememberText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
   },
   button: {
     alignItems: 'center',
