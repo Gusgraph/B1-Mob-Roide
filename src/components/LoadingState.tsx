@@ -8,7 +8,7 @@
 // - https://Gusgraph.com
 // - File Path: LoadingState.tsx - src/components/LoadingState.tsx
 // =====================================================
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -17,7 +17,8 @@ import { typography } from '@/theme/typography';
 
 export function LoadingState({ label = 'Loading' }: { label?: string }) {
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const { height } = useWindowDimensions();
+  const styles = makeStyles(colors, height);
   const scan = useRef(new Animated.Value(0)).current;
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -106,11 +107,14 @@ export function LoadingState({ label = 'Loading' }: { label?: string }) {
   );
 }
 
-const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+const makeStyles = (colors: ThemeColors, height: number) => StyleSheet.create({
   container: {
     alignItems: 'center',
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: Math.max(373, height * 0.67),
     paddingHorizontal: spacing.lg,
-    paddingVertical: 19,
+    paddingVertical: spacing.xl,
   },
   panel: {
     alignItems: 'center',
@@ -122,6 +126,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 19,
     paddingVertical: 17,
+    maxWidth: 571,
     width: '100%',
   },
   botCore: {
