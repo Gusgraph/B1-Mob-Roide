@@ -46,6 +46,11 @@ const normalizeUser = (value: unknown): MobileUser => {
   };
 };
 
+const localSessionUser = (): MobileUser => ({
+  id: 'local-session',
+  name: 'Bismel1',
+});
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,9 +116,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const token = await tokenStore.getAccessToken();
         if (token) {
-          const nextUser = await api.get<unknown>(endpoints.auth.me);
           if (mounted) {
-            setUser(normalizeUser(nextUser));
+            setUser(localSessionUser());
+            setIsLoading(false);
+          }
+
+          try {
+            const nextUser = await api.get<unknown>(endpoints.auth.me);
+            if (mounted) {
+              setUser(normalizeUser(nextUser));
+            }
+          } catch {
+            if (mounted) {
+              await tokenStore.clear();
+              setUser(null);
+              router.replace('/(auth)/login' as never);
+            }
           }
         }
       } catch {
