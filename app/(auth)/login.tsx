@@ -150,7 +150,7 @@ export default function LoginScreen() {
           <View style={[styles.checkbox, rememberEmail && styles.checkboxActive]}>
             {rememberEmail ? <Check color={colors.black} size={13} strokeWidth={3} /> : null}
           </View>
-          <Text style={styles.rememberText}>Remember email on this device</Text>
+          <Text style={styles.rememberText}>Save username/email</Text>
         </Pressable>
         {authError ? <ErrorState message={authError} /> : null}
         <Pressable
