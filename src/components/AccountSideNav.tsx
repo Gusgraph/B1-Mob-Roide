@@ -59,11 +59,11 @@ export function AccountSideNav({ compact = false }: AccountSideNavProps) {
 
       {accounts.length ? (
         <View style={styles.accountsInfo}>
-          <Text style={styles.sectionLabel}>Connected Accounts</Text>
+          <Text style={styles.sectionLabel}>Trading Accounts</Text>
           <Text style={styles.emptyText}>{accounts.length} available for product assignment.</Text>
         </View>
       ) : (
-        <Text style={styles.emptyText}>{isLoadingAccounts ? 'Loading accounts' : accountsError || 'No broker accounts connected.'}</Text>
+        <Text style={styles.emptyText}>{isLoadingAccounts ? 'Loading accounts' : accountsError || 'No trading accounts added yet.'}</Text>
       )}
 
       <View style={styles.menu}>

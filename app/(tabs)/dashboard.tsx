@@ -94,10 +94,10 @@ export default function DashboardScreen() {
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();
   const styles = makeStyles(colors, width, height);
-  const connectedAccounts = useMemo(() => accounts.filter(isConnectedAccount), [accounts]);
+  const dashboardAccounts = useMemo(() => accounts.filter(isDashboardAccount), [accounts]);
   const activeAccount = useMemo(
-    () => connectedAccounts.find((account) => account.id === selectedAccount?.id) || connectedAccounts[0] || null,
-    [connectedAccounts, selectedAccount],
+    () => dashboardAccounts.find((account) => account.id === selectedAccount?.id) || dashboardAccounts[0] || null,
+    [dashboardAccounts, selectedAccount],
   );
 
   const load = useCallback(async () => {
@@ -254,7 +254,7 @@ export default function DashboardScreen() {
     >
       {isLoading || isLoadingAccounts ? <LoadingState label="Loading dashboard" /> : null}
       {error || accountsError ? <ErrorState message={error || accountsError || 'Connection failed.'} /> : null}
-      {!isLoading && !isLoadingAccounts && !error && !accountsError && connectedAccounts.length === 0 ? <EmptyState message="No connected trading accounts returned." /> : null}
+      {!isLoading && !isLoadingAccounts && !error && !accountsError && dashboardAccounts.length === 0 ? <EmptyState message="No trading accounts returned." /> : null}
       {dashboard ? (
         <>
           <Bismel1Card style={styles.selectorCard}>
@@ -266,7 +266,7 @@ export default function DashboardScreen() {
               {isSnapshotLoading ? <Text style={styles.loadingText}>Syncing</Text> : null}
             </View>
             <View style={styles.accountChips}>
-              {connectedAccounts.map((account) => (
+              {dashboardAccounts.map((account) => (
                 <Pressable
                   key={account.id}
                   onPress={() => selectAccount(account.id)}
@@ -467,11 +467,10 @@ const parseRows = (response: unknown, keys: string[]) => {
   return asArray(value || response).map(asRecord);
 };
 
-const isConnectedAccount = (account: ManagedAccount) => {
-  const raw = account.raw;
+const isDashboardAccount = (account: ManagedAccount) => {
   const status = account.status.toLowerCase();
 
-  return raw.connected !== false && !status.includes('disconnect') && !status.includes('removed');
+  return !status.includes('disconnect') && !status.includes('removed');
 };
 
 const loadAccountSnapshot = async (account: ManagedAccount) => {
