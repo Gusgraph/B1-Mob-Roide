@@ -23,6 +23,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { formatMoney, formatSignedMoney } from '@/utils/money';
+import { LIST_PAGE_SIZE, paginatedEndpoint, uniqueRows } from '@/utils/pagination';
 import { formatSignedPercent } from '@/utils/percent';
 import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 import { formatDateTime } from '@/utils/dates';
@@ -34,6 +35,12 @@ export default function ActivityScreen() {
   const [trades, setTrades] = useState<Record<string, unknown>[]>([]);
   const [system, setSystem] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMoreTrades, setIsLoadingMoreTrades] = useState(false);
+  const [isLoadingMoreSystem, setIsLoadingMoreSystem] = useState(false);
+  const [hasMoreTrades, setHasMoreTrades] = useState(false);
+  const [hasMoreSystem, setHasMoreSystem] = useState(false);
+  const [visibleTradeCount, setVisibleTradeCount] = useState(LIST_PAGE_SIZE);
+  const [visibleSystemCount, setVisibleSystemCount] = useState(LIST_PAGE_SIZE);
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [systemError, setSystemError] = useState<string | null>(null);
   const [showBackTop, setShowBackTop] = useState(false);
@@ -46,19 +53,27 @@ export default function ActivityScreen() {
     setIsLoading(true);
 
     const [tradeResult, systemResult] = await Promise.allSettled([
-      api.get<unknown>(endpoints.tradeActivity),
-      api.get<unknown>(endpoints.systemActivity),
+      api.get<unknown>(paginatedEndpoint(endpoints.tradeActivity)),
+      api.get<unknown>(paginatedEndpoint(endpoints.systemActivity)),
     ]);
 
     if (tradeResult.status === 'fulfilled') {
-      setTrades(asArray(asRecord(tradeResult.value).activity || asRecord(tradeResult.value).trades || tradeResult.value).map(asRecord));
+      const nextTrades = activityRows(tradeResult.value);
+
+      setTrades(nextTrades);
+      setHasMoreTrades(nextTrades.length >= LIST_PAGE_SIZE);
+      setVisibleTradeCount(LIST_PAGE_SIZE);
       setTradeError(null);
     } else {
       setTradeError(customerSafeMessage(tradeResult.reason));
     }
 
     if (systemResult.status === 'fulfilled') {
-      setSystem(asArray(asRecord(systemResult.value).activity || systemResult.value).map(asRecord));
+      const nextSystem = systemRows(systemResult.value);
+
+      setSystem(nextSystem);
+      setHasMoreSystem(nextSystem.length >= LIST_PAGE_SIZE);
+      setVisibleSystemCount(LIST_PAGE_SIZE);
       setSystemError(null);
     } else {
       setSystemError(customerSafeMessage(systemResult.reason));
@@ -73,6 +88,10 @@ export default function ActivityScreen() {
 
   const rows = tab === 'trades' ? trades : system;
   const error = tab === 'trades' ? tradeError : systemError;
+  const visibleCount = tab === 'trades' ? visibleTradeCount : visibleSystemCount;
+  const visibleRows = rows.slice(0, visibleCount);
+  const hasMoreRows = (tab === 'trades' ? hasMoreTrades : hasMoreSystem) || rows.length > visibleCount;
+  const isLoadingMoreRows = tab === 'trades' ? isLoadingMoreTrades : isLoadingMoreSystem;
   const scrollToTop = () => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
     setShowBackTop(false);
@@ -111,7 +130,7 @@ export default function ActivityScreen() {
       {error ? <ErrorState message={error} /> : null}
       {!isLoading && !error && rows.length === 0 ? <EmptyState message="No activity returned." /> : null}
       <View style={styles.cardGrid}>
-        {rows.map((item, index) => (
+        {visibleRows.map((item, index) => (
           tab === 'trades' ? (
             <TradeActivityCard
               colors={colors}
@@ -131,9 +150,98 @@ export default function ActivityScreen() {
           )
         ))}
       </View>
+      {hasMoreRows && !isLoading && !error ? (
+        <View style={styles.loadMoreWrap}>
+          <Pressable
+            accessibilityLabel={`Load more ${tab === 'trades' ? 'trade' : 'system'} activity`}
+            accessibilityRole="button"
+            disabled={isLoadingMoreRows}
+            onPress={loadMoreRows}
+            style={[styles.loadMoreButton, isLoadingMoreRows && styles.loadMoreButtonDisabled]}
+          >
+            <Text style={styles.loadMoreText}>{isLoadingMoreRows ? 'Loading' : 'Load More'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </AppShell>
   );
+
+  async function loadMoreRows() {
+    if (tab === 'trades') {
+      await loadMoreTrades();
+    } else {
+      await loadMoreSystem();
+    }
+  }
+
+  async function loadMoreTrades() {
+    if (isLoadingMoreTrades) {
+      return;
+    }
+
+    if (trades.length > visibleTradeCount) {
+      setVisibleTradeCount((count) => count + LIST_PAGE_SIZE);
+      return;
+    }
+
+    setIsLoadingMoreTrades(true);
+    try {
+      const response = await api.get<unknown>(paginatedEndpoint(endpoints.tradeActivity, LIST_PAGE_SIZE, trades.length));
+      const nextTrades = activityRows(response);
+
+      setTrades((currentRows) => uniqueRows(currentRows, nextTrades, activityRowKey));
+      setHasMoreTrades(nextTrades.length >= LIST_PAGE_SIZE);
+      setVisibleTradeCount((count) => count + LIST_PAGE_SIZE);
+      setTradeError(null);
+    } catch (loadMoreError) {
+      setTradeError(customerSafeMessage(loadMoreError));
+    } finally {
+      setIsLoadingMoreTrades(false);
+    }
+  }
+
+  async function loadMoreSystem() {
+    if (isLoadingMoreSystem) {
+      return;
+    }
+
+    if (system.length > visibleSystemCount) {
+      setVisibleSystemCount((count) => count + LIST_PAGE_SIZE);
+      return;
+    }
+
+    setIsLoadingMoreSystem(true);
+    try {
+      const response = await api.get<unknown>(paginatedEndpoint(endpoints.systemActivity, LIST_PAGE_SIZE, system.length));
+      const nextSystem = systemRows(response);
+
+      setSystem((currentRows) => uniqueRows(currentRows, nextSystem, activityRowKey));
+      setHasMoreSystem(nextSystem.length >= LIST_PAGE_SIZE);
+      setVisibleSystemCount((count) => count + LIST_PAGE_SIZE);
+      setSystemError(null);
+    } catch (loadMoreError) {
+      setSystemError(customerSafeMessage(loadMoreError));
+    } finally {
+      setIsLoadingMoreSystem(false);
+    }
+  }
 }
+
+const activityRows = (response: unknown) =>
+  asArray(asRecord(response).activity || asRecord(response).trades || response).map(asRecord);
+
+const systemRows = (response: unknown) =>
+  asArray(asRecord(response).activity || response).map(asRecord);
+
+const activityRowKey = (row: Record<string, unknown>, index: number) =>
+  firstString(row, ['id', 'activity_id', 'uuid'], '') ||
+  [
+    firstString(row, ['created_at', 'timestamp', 'time', 'filled_at'], ''),
+    firstString(row, ['symbol', 'ticker', 'asset_symbol'], ''),
+    firstString(row, ['side', 'action', 'direction', 'event', 'type', 'label', 'title'], ''),
+    firstString(row, ['detail', 'message', 'description', 'status'], ''),
+  ].filter(Boolean).join('|') ||
+  String(index);
 
 function TradeActivityCard({
   colors,
@@ -561,6 +669,32 @@ const makeStyles = (colors: ThemeColors, width: number, height: number) => {
   },
   negativeText: {
     color: colors.danger,
+  },
+  loadMoreWrap: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 113,
+    paddingHorizontal: 17,
+    paddingVertical: 9,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.27,
+    shadowRadius: 13,
+  },
+  loadMoreButtonDisabled: {
+    opacity: 0.57,
+  },
+  loadMoreText: {
+    color: colors.cyan,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   backTopButton: {
     alignItems: 'center',

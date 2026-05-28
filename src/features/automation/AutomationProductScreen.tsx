@@ -9,7 +9,7 @@
 // - File Path: AutomationProductScreen.tsx - src/features/automation/AutomationProductScreen.tsx
 // =====================================================
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Linking, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { ArrowUp, Bot, Check, ChevronDown, Power, RadioTower, Search, X } from 'lucide-react-native';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
@@ -36,6 +36,14 @@ import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 type AutomationProductScreenProps = {
   productKey: string;
   title: string;
+};
+
+const PLANS_URL = 'https://www.bismel1.com/plans';
+
+const isAutomationProductActive = (product: Record<string, unknown>) => {
+  const status = firstString(product, ['status', 'status_label', 'entitlement', 'state'], '').toLowerCase();
+
+  return product.automation_allowed === true || product.active === true || ['active', 'enabled', 'allowed'].includes(status);
 };
 
 export function AutomationProductScreen({ productKey, title }: AutomationProductScreenProps) {
@@ -79,11 +87,31 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
 
     try {
       const automationResponse = asRecord(await api.get<unknown>(endpoints.automation(productKey, assignedAccount.pathValue)));
+      const productPayload = asRecord(automationResponse.product);
+
+      if (!isAutomationProductActive(productPayload)) {
+        setAutomation(null);
+        setSymbols([]);
+        openPlansForInactiveProduct();
+        setIsLoading(false);
+        setIsLoadingSymbols(false);
+        return;
+      }
+
       setAutomation(automationResponse);
       setSymbols(asArray(automationResponse.symbols).map(asRecord));
       setIsLoading(false);
       setIsLoadingSymbols(false);
     } catch (loadError) {
+      if (loadError instanceof ApiError && loadError.code === 'product_plan_required') {
+        setAutomation(null);
+        setSymbols([]);
+        openPlansForInactiveProduct();
+        setIsLoading(false);
+        setIsLoadingSymbols(false);
+        return;
+      }
+
       setError(customerSafeMessage(loadError));
       setIsLoading(false);
       setIsLoadingSymbols(false);
@@ -452,6 +480,13 @@ export function AutomationProductScreen({ productKey, title }: AutomationProduct
   async function assignAccount(account: ManagedAccount) {
     await assignProductAccount(productKey, account.id);
     setAccountDropdownOpen(false);
+  }
+
+  function openPlansForInactiveProduct() {
+    setError('This product is not active for this account. Opening plans.');
+    Linking.openURL(PLANS_URL).catch(() => {
+      setError('This product is not active for this account. Open Plans to continue.');
+    });
   }
 
   async function searchSymbols() {

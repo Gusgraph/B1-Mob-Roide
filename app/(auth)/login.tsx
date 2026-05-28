@@ -27,6 +27,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [rememberEmail, setRememberEmail] = useState(false);
+  const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -78,34 +79,41 @@ export default function LoginScreen() {
             <Mail color={colors.accent} size={15} />
             <Text style={styles.label}>Email</Text>
           </View>
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="username"
-            autoCorrect={false}
-            importantForAutofill="yes"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            onSubmitEditing={() => undefined}
-            placeholder="email@example.com"
-            placeholderTextColor={colors.textMuted}
-            returnKeyType="next"
-            style={styles.input}
-            textContentType="username"
-            value={email}
-          />
+          <View style={[styles.inputShell, focusedField === 'email' && styles.inputFocused]}>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="username"
+              autoCorrect={false}
+              importantForAutofill="yes"
+              keyboardType="email-address"
+              onBlur={() => setFocusedField(null)}
+              onChangeText={setEmail}
+              onFocus={() => setFocusedField('email')}
+              onSubmitEditing={() => undefined}
+              placeholder="email@example.com"
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="next"
+              style={styles.input}
+              textContentType="username"
+              underlineColorAndroid="transparent"
+              value={email}
+            />
+          </View>
         </View>
         <View style={styles.field}>
           <View style={styles.labelRow}>
             <Shield color={colors.purple} size={15} />
             <Text style={styles.label}>Password</Text>
           </View>
-          <View style={styles.passwordBox}>
+          <View style={[styles.inputShell, styles.passwordBox, focusedField === 'password' && styles.inputFocused]}>
             <TextInput
               autoCapitalize="none"
               autoComplete="current-password"
               autoCorrect={false}
               importantForAutofill="yes"
+              onBlur={() => setFocusedField(null)}
               onChangeText={setPassword}
+              onFocus={() => setFocusedField('password')}
               onSubmitEditing={() => {
                 if (!disabled) {
                   void submit();
@@ -118,6 +126,7 @@ export default function LoginScreen() {
               spellCheck={false}
               style={[styles.input, styles.passwordInput]}
               textContentType="password"
+              underlineColorAndroid="transparent"
               value={password}
             />
             <Pressable
@@ -195,14 +204,28 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: typography.small,
     fontWeight: '700',
   },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+  inputShell: {
+    backgroundColor: colors.cyan,
     borderRadius: 9,
-    borderWidth: 1,
+    shadowColor: colors.cyan,
+    shadowOffset: { height: 0, width: 0 },
+    shadowOpacity: 0.57,
+    shadowRadius: 13,
+    padding: 2,
+  },
+  input: {
+    backgroundColor: colors.background,
+    borderRadius: 7,
     color: colors.text,
     fontSize: typography.body,
     padding: spacing.lg,
+  },
+  inputFocused: {
+    backgroundColor: colors.success,
+    shadowColor: colors.success,
+    shadowOpacity: 0.67,
+    shadowRadius: 15,
+    elevation: 2,
   },
   passwordBox: {
     position: 'relative',
@@ -215,8 +238,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     height: 43,
     justifyContent: 'center',
     position: 'absolute',
-    right: 7,
-    top: 7,
+    right: 9,
+    top: 9,
     width: 43,
   },
   rememberRow: {

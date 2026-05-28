@@ -64,6 +64,19 @@ type StatItem = {
   value: string;
 };
 
+type PerformanceSummary = {
+  averageTradePl?: number;
+  bestTradePl?: number;
+  bestTradeSymbol?: string;
+  closedTrades?: number;
+  losingTrades?: number;
+  realizedPl?: number;
+  winRate?: number;
+  winningTrades?: number;
+  worstTradePl?: number;
+  worstTradeSymbol?: string;
+};
+
 const CHART_HEIGHT = 191;
 const DEFAULT_CHART_WIDTH = 301;
 const EMPTY_MESSAGE = 'Performance path will appear after closed trades are available.';
@@ -75,6 +88,8 @@ export default function PerformanceScreen() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [performanceSummary, setPerformanceSummary] = useState<PerformanceSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chartWidth, setChartWidth] = useState(DEFAULT_CHART_WIDTH);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -104,6 +119,40 @@ export default function PerformanceScreen() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSummary = async () => {
+      if (!selectedAccount) {
+        setPerformanceSummary(null);
+        return;
+      }
+
+      setIsSummaryLoading(true);
+      try {
+        const nextSummary = await loadAccountPerformanceSummary(selectedAccount, period);
+
+        if (mounted) {
+          setPerformanceSummary(nextSummary);
+        }
+      } catch {
+        if (mounted) {
+          setPerformanceSummary(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsSummaryLoading(false);
+        }
+      }
+    };
+
+    loadSummary();
+
+    return () => {
+      mounted = false;
+    };
+  }, [period, selectedAccount]);
+
   const filteredTrades = useMemo(
     () => filterTrades(trades, selectedAccount, period, customStart, customEnd),
     [customEnd, customStart, period, selectedAccount, trades],
@@ -114,7 +163,7 @@ export default function PerformanceScreen() {
   );
   const isLegacyFirstAccountFeed = !hasAccountScopedTrades && selectedAccount?.pathValue === '1';
   const shouldShowAccountScopeNotice = Boolean(selectedAccount && !hasAccountScopedTrades && selectedAccount.pathValue !== '1');
-  const stats = useMemo(() => buildStats(filteredTrades), [filteredTrades]);
+  const stats = useMemo(() => buildStats(filteredTrades, performanceSummary), [filteredTrades, performanceSummary]);
   const points = useMemo(() => buildCurvePoints(filteredTrades), [filteredTrades]);
   const chart = useMemo(() => buildChartGeometry(points, chartWidth), [chartWidth, points]);
   const selectedPoint = selectedIndex === null ? null : chart.points[selectedIndex] || null;
@@ -147,7 +196,7 @@ export default function PerformanceScreen() {
       showAccountNav
       title="Performance"
     >
-      {isLoading || isLoadingAccounts ? <LoadingState label="Loading performance" /> : null}
+      {isLoading || isLoadingAccounts || isSummaryLoading ? <LoadingState label="Loading performance" /> : null}
       {error || accountsError ? <ErrorState message={error || accountsError || 'Connection failed.'} /> : null}
       {!isLoading && !isLoadingAccounts && !error && !accountsError ? (
         <>
@@ -411,8 +460,9 @@ const parseClosedTrades = (response: unknown): TradeRecord[] => {
       const realizedPl = firstNumber(row, ['realized_pl', 'realized_pnl', 'pnl', 'profit_loss']);
       const timestamp = firstString(row, ['timestamp', 'created_at', 'filled_at', 'time'], '');
       const flow = firstString(row, ['trade_flow'], '').toLowerCase();
+      const isClosedTrade = flow.includes('exit') || flow.includes('close') || flow.includes('closed') || flow.includes('sell') || typeof realizedPl === 'number';
 
-      if (flow !== 'exit' || typeof realizedPl !== 'number' || !timestamp || Number.isNaN(Date.parse(timestamp))) {
+      if (!isClosedTrade || typeof realizedPl !== 'number' || !timestamp || Number.isNaN(Date.parse(timestamp))) {
         return null;
       }
 
@@ -474,16 +524,46 @@ const filterTrades = (
 };
 
 const tradeMatchesAccount = (trade: TradeRecord, account: ManagedAccount) => {
+  const possibleIds = accountIdentityValues(account);
+
+  return [trade.accountRef, trade.brokerAccountRef, trade.slotNumber, trade.accountLabel].some((value) => value && possibleIds.includes(value));
+};
+
+const accountIdentityValues = (account: ManagedAccount) => {
   const raw = account.raw;
-  const possibleIds = [
+
+  return [
     account.id,
+    account.label,
     account.pathValue,
     firstString(raw, ['broker_account_ref', 'broker_account_id'], ''),
     firstString(raw, ['account_ref', 'account_id'], ''),
     firstString(raw, ['slot_number', 'account_slot', 'slot'], ''),
   ].filter(Boolean);
+};
 
-  return [trade.accountRef, trade.brokerAccountRef, trade.slotNumber, trade.accountLabel].some((value) => value && possibleIds.includes(value));
+const loadAccountPerformanceSummary = async (account: ManagedAccount, period: PeriodKey) => {
+  const brokerAccountRef = firstString(account.raw, ['broker_account_ref', 'broker_account_id'], '');
+  const accountSlot = firstString(account.raw, ['slot_number', 'account_slot', 'slot'], account.pathValue || '');
+  const periodQuery = period === 'CUSTOM' ? '' : `&period=${encodeURIComponent(period.toLowerCase())}`;
+  const summaryPaths = [
+    brokerAccountRef ? `${endpoints.performanceSummary}?broker_account_ref=${encodeURIComponent(brokerAccountRef)}${periodQuery}` : '',
+    accountSlot ? `${endpoints.performanceSummary}?account_slot=${encodeURIComponent(accountSlot)}${periodQuery}` : '',
+    brokerAccountRef ? `${endpoints.performanceSummary}?broker_account_ref=${encodeURIComponent(brokerAccountRef)}` : '',
+    accountSlot ? `${endpoints.performanceSummary}?account_slot=${encodeURIComponent(accountSlot)}` : '',
+  ].filter(Boolean);
+  const uniquePaths = [...new Set(summaryPaths)];
+  let lastError: unknown = null;
+
+  for (const path of uniquePaths) {
+    try {
+      return parsePerformanceSummary(await api.get<unknown>(path));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Performance summary unavailable.');
 };
 
 const periodStart = (now: Date, period: PeriodKey, customStart: string) => {
@@ -512,7 +592,7 @@ const endOfLocalDay = (value: string) => {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
-const buildStats = (trades: TradeRecord[]): StatItem[] => {
+const buildStats = (trades: TradeRecord[], summary: PerformanceSummary | null): StatItem[] => {
   const realized = trades.reduce((sum, trade) => sum + trade.realizedPl, 0);
   const winners = trades.filter((trade) => trade.realizedPl > 0);
   const losers = trades.filter((trade) => trade.realizedPl < 0);
@@ -520,23 +600,53 @@ const buildStats = (trades: TradeRecord[]): StatItem[] => {
   const best = trades.length ? trades.reduce((current, trade) => trade.realizedPl > current.realizedPl ? trade : current, trades[0]) : null;
   const worst = trades.length ? trades.reduce((current, trade) => trade.realizedPl < current.realizedPl ? trade : current, trades[0]) : null;
   const winRate = trades.length ? (winners.length / trades.length) * 100 : 0;
+  const summaryRealized = summary?.realizedPl ?? realized;
+  const summaryClosedTrades = summary?.closedTrades ?? trades.length;
+  const summaryWinningTrades = summary?.winningTrades ?? winners.length;
+  const summaryLosingTrades = summary?.losingTrades ?? losers.length;
+  const summaryWinRate = summary?.winRate ?? winRate;
+  const summaryAverage = summary?.averageTradePl ?? average;
+  const summaryBestPl = summary?.bestTradePl ?? best?.realizedPl;
+  const summaryWorstPl = summary?.worstTradePl ?? worst?.realizedPl;
 
   return [
-    { label: 'Realized P/L', tone: toneForNumber(realized), value: formatSignedMoney(realized) },
-    { label: 'Closed Trades', tone: 'neutral', value: String(trades.length) },
-    { label: 'Winning Trades', tone: 'positive', value: String(winners.length) },
-    { label: 'Losing Trades', tone: losers.length ? 'negative' : 'neutral', value: String(losers.length) },
-    { label: 'Win Rate', tone: 'positive', value: `${winRate.toFixed(2)}%` },
-    { label: 'Average Trade P/L', tone: toneForNumber(average), value: formatSignedMoney(average) },
-    { label: 'Best Trade', symbol: best?.symbol, tone: best ? toneForNumber(best.realizedPl) : 'neutral', value: best ? formatSignedMoney(best.realizedPl) : '' },
-    { label: 'Worst Trade', symbol: worst?.symbol, tone: worst ? toneForNumber(worst.realizedPl) : 'neutral', value: worst ? formatSignedMoney(worst.realizedPl) : '' },
+    { label: 'Realized P/L', tone: toneForNumber(summaryRealized), value: formatSignedMoney(summaryRealized) },
+    { label: 'Closed Trades', tone: 'neutral', value: String(summaryClosedTrades) },
+    { label: 'Winning Trades', tone: 'positive', value: String(summaryWinningTrades) },
+    { label: 'Losing Trades', tone: summaryLosingTrades ? 'negative' : 'neutral', value: String(summaryLosingTrades) },
+    { label: 'Win Rate', tone: 'positive', value: `${summaryWinRate.toFixed(2)}%` },
+    { label: 'Average Trade P/L', tone: toneForNumber(summaryAverage), value: formatSignedMoney(summaryAverage) },
+    { label: 'Best Trade', symbol: summary?.bestTradeSymbol || best?.symbol, tone: typeof summaryBestPl === 'number' ? toneForNumber(summaryBestPl) : 'neutral', value: typeof summaryBestPl === 'number' ? formatSignedMoney(summaryBestPl) : '' },
+    { label: 'Worst Trade', symbol: summary?.worstTradeSymbol || worst?.symbol, tone: typeof summaryWorstPl === 'number' ? toneForNumber(summaryWorstPl) : 'neutral', value: typeof summaryWorstPl === 'number' ? formatSignedMoney(summaryWorstPl) : '' },
   ];
+};
+
+const parsePerformanceSummary = (response: unknown): PerformanceSummary => {
+  const root = asRecord(response);
+  const summary = asRecord(root.summary || root.performance || response);
+  const bestTrade = asRecord(summary.best_trade || summary.bestTrade);
+  const worstTrade = asRecord(summary.worst_trade || summary.worstTrade);
+
+  return {
+    averageTradePl: firstNumber(summary, ['average_trade_pl', 'average_trade_pnl', 'avg_trade_pl', 'avg_pnl']),
+    bestTradePl: firstNumber(summary, ['best_trade_pl', 'best_trade_pnl', 'best_pl']) ?? firstNumber(bestTrade, ['realized_pl', 'realized_pnl', 'pnl', 'profit_loss']),
+    bestTradeSymbol: firstString(summary, ['best_trade_symbol'], '') || firstString(bestTrade, ['symbol', 'ticker', 'asset_symbol'], ''),
+    closedTrades: firstNumber(summary, ['closed_trades', 'total_closed_trades', 'total_trades', 'trades_count']),
+    losingTrades: firstNumber(summary, ['losing_trades', 'loss_trades', 'losers']),
+    realizedPl: firstNumber(summary, ['realized_pl', 'realized_pnl', 'realized_profit_loss', 'profit_loss', 'pnl']),
+    winRate: firstNumber(summary, ['win_rate', 'winRate', 'winning_rate', 'win_percentage']),
+    winningTrades: firstNumber(summary, ['winning_trades', 'win_trades', 'winners']),
+    worstTradePl: firstNumber(summary, ['worst_trade_pl', 'worst_trade_pnl', 'worst_pl']) ?? firstNumber(worstTrade, ['realized_pl', 'realized_pnl', 'pnl', 'profit_loss']),
+    worstTradeSymbol: firstString(summary, ['worst_trade_symbol'], '') || firstString(worstTrade, ['symbol', 'ticker', 'asset_symbol'], ''),
+  };
 };
 
 const buildCurvePoints = (trades: TradeRecord[]): PerformancePoint[] => {
   let runningTotal = 0;
+  const movementTrades = trades.filter((trade) => trade.realizedPl !== 0);
+  const chartTrades = movementTrades.length ? movementTrades : trades;
 
-  return trades.map((trade) => {
+  return chartTrades.map((trade) => {
     runningTotal += trade.realizedPl;
     const tone = toneForNumber(trade.realizedPl);
 
@@ -598,17 +708,32 @@ const smoothPath = (points: { x: number; y: number }[]) => {
     return '';
   }
 
+  if (points.length === 2) {
+    const [first, second] = points;
+    return `M ${first.x.toFixed(1)} ${first.y.toFixed(1)} L ${second.x.toFixed(1)} ${second.y.toFixed(1)}`;
+  }
+
   return points.reduce((path, point, index) => {
     if (index === 0) {
       return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
     }
 
     const previous = points[index - 1];
-    const controlOffset = (point.x - previous.x) / 2;
+    const beforePrevious = points[index - 2] || previous;
+    const next = points[index + 1] || point;
+    const smoothing = 0.19;
+    const yMin = Math.min(previous.y, point.y);
+    const yMax = Math.max(previous.y, point.y);
+    const controlOneX = previous.x + (point.x - beforePrevious.x) * smoothing;
+    const controlOneY = clamp(previous.y + (point.y - beforePrevious.y) * smoothing, yMin, yMax);
+    const controlTwoX = point.x - (next.x - previous.x) * smoothing;
+    const controlTwoY = clamp(point.y - (next.y - previous.y) * smoothing, yMin, yMax);
 
-    return `${path} C ${(previous.x + controlOffset).toFixed(1)} ${previous.y.toFixed(1)}, ${(point.x - controlOffset).toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    return `${path} C ${controlOneX.toFixed(1)} ${controlOneY.toFixed(1)}, ${controlTwoX.toFixed(1)} ${controlTwoY.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
   }, '');
 };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const toneForNumber = (value: number): StatItem['tone'] => {
   if (value > 0) {

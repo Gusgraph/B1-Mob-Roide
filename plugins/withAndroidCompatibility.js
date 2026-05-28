@@ -8,10 +8,10 @@
 // - https://Gusgraph.com
 // - File Path: withAndroidCompatibility.js - plugins/withAndroidCompatibility.js
 // =====================================================
-const { withAndroidManifest } = require('@expo/config-plugins');
+const { withAndroidManifest, withAppBuildGradle } = require('@expo/config-plugins');
 
 module.exports = function withAndroidCompatibility(config) {
-  return withAndroidManifest(config, (configWithManifest) => {
+  config = withAndroidManifest(config, (configWithManifest) => {
     const manifest = configWithManifest.modResults.manifest;
 
     manifest['supports-screens'] = [
@@ -47,6 +47,35 @@ module.exports = function withAndroidCompatibility(config) {
 
     return configWithManifest;
   });
+
+  return withAppBuildGradle(config, (configWithGradle) => {
+    configWithGradle.modResults.contents = ensureLocalBuildType(configWithGradle.modResults.contents);
+
+    return configWithGradle;
+  });
 };
 
 const asArray = (value) => Array.isArray(value) ? value : [];
+
+const ensureLocalBuildType = (contents) => {
+  if (contents.includes('local {') && contents.includes('initWith debug')) {
+    return contents;
+  }
+
+  const debugBlock = [
+    '        debug {',
+    '            signingConfig signingConfigs.debug',
+    '        }',
+  ].join('\n');
+  const localBlock = [
+    debugBlock,
+    '        local {',
+    '            initWith debug',
+    '            signingConfig signingConfigs.debug',
+    '            debuggable true',
+    "            matchingFallbacks = ['debug']",
+    '        }',
+  ].join('\n');
+
+  return contents.replace(debugBlock, localBlock);
+};

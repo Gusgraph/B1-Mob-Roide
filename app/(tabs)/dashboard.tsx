@@ -28,6 +28,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { formatMoney, formatSignedMoney } from '@/utils/money';
+import { LIST_PAGE_SIZE, paginatedEndpoint, uniqueRows } from '@/utils/pagination';
 import { asArray, asRecord, firstNumber, firstString } from '@/utils/records';
 import { formatDateTime } from '@/utils/dates';
 
@@ -46,6 +47,7 @@ type TradeActivityItem = {
   brokerAccountRef: string;
   detail: string;
   product: string;
+  realizedPl: number | null;
   side: string;
   slotNumber: string;
   symbol: string;
@@ -78,9 +80,13 @@ type AccountSnapshotState = {
 
 export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
+  const [productRows, setProductRows] = useState<Record<string, unknown>[]>([]);
   const [snapshot, setSnapshot] = useState<AccountSnapshotState | null>(null);
   const [performanceSummary, setPerformanceSummary] = useState<AccountPerformanceState | null>(null);
   const [trades, setTrades] = useState<TradeActivityItem[]>([]);
+  const [hasMoreTrades, setHasMoreTrades] = useState(false);
+  const [isLoadingMoreTrades, setIsLoadingMoreTrades] = useState(false);
+  const [visibleTradeCount, setVisibleTradeCount] = useState(LIST_PAGE_SIZE);
   const [performanceTrades, setPerformanceTrades] = useState<PerformanceTradeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
@@ -104,16 +110,21 @@ export default function DashboardScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      const [, dashboardResponse, tradesResponse] = await Promise.all([
+      const [, dashboardResponse, tradesResponse, productsResponse] = await Promise.all([
         refreshAccounts(),
         api.get<unknown>(endpoints.dashboard),
-        api.get<unknown>(endpoints.tradeActivity),
+        api.get<unknown>(paginatedEndpoint(endpoints.tradeActivity)),
+        api.get<unknown>(endpoints.products),
       ]);
       const nextDashboard = asRecord(dashboardResponse);
+      const nextTrades = parseTradeActivity(tradesResponse);
 
       setDashboard(nextDashboard);
+      setProductRows(parseProductRows(productsResponse));
       setDismissedAlertKeys(asArray<unknown>(nextDashboard.dismissed_alert_keys).map((key) => String(key)));
-      setTrades(parseTradeActivity(tradesResponse));
+      setTrades(nextTrades);
+      setHasMoreTrades(nextTrades.length >= LIST_PAGE_SIZE);
+      setVisibleTradeCount(LIST_PAGE_SIZE);
       setPerformanceTrades(parsePerformanceTrades(tradesResponse));
     } catch (loadError) {
       setError(customerSafeMessage(loadError));
@@ -210,7 +221,7 @@ export default function DashboardScreen() {
   const activeSnapshot = snapshot && activeAccount && snapshot.accountId === activeAccount.id ? snapshot.data : null;
   const effectiveSnapshot = mergeRecords(accountRecord, activeSnapshot, !activeAccount ? dashboardSnapshot : null);
   const brokerSnapshot = asRecord(effectiveSnapshot.broker);
-  const products = asArray(dashboard?.active_products || dashboard?.products);
+  const products = normalizeActiveProducts(dashboard, productRows);
   const persistedDismissedAlertKeys = asArray<unknown>(dashboard?.dismissed_alert_keys).map((key) => String(key));
   const alerts = normalizeDashboardAlerts(dashboard)
     .filter((alert) => {
@@ -219,6 +230,8 @@ export default function DashboardScreen() {
       return !alertKeys.some((key) => dismissedAlertKeys.includes(key) || persistedDismissedAlertKeys.includes(key));
     });
   const scopedTrades = useMemo(() => filterTradesByAccount(trades, activeAccount), [activeAccount, trades]);
+  const visibleScopedTrades = useMemo(() => scopedTrades.slice(0, visibleTradeCount), [scopedTrades, visibleTradeCount]);
+  const canLoadMoreTrades = hasMoreTrades || scopedTrades.length > visibleTradeCount;
   const scopedPerformanceTrades = useMemo(() => filterPerformanceTradesByAccount(performanceTrades, activeAccount), [activeAccount, performanceTrades]);
   const hasScopedTradeFeed = useMemo(
     () => trades.some((trade) => trade.accountRef || trade.brokerAccountRef || trade.slotNumber),
@@ -292,7 +305,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.compactMetric}>
-                <Text style={styles.metricLabel}>Total Account All Time: Realized P/L</Text>
+                <Text style={styles.metricLabel}>Total P/L</Text>
                 <Text style={[styles.metricValue, allTimePerformance.realizedPl < 0 ? styles.negativeText : allTimePerformance.realizedPl > 0 ? styles.positiveText : null]}>
                   {formatSignedMoney(allTimePerformance.realizedPl)}
                 </Text>
@@ -328,8 +341,8 @@ export default function DashboardScreen() {
                   const record = asRecord(product);
                   return (
                     <View key={String(record.id || record.slug || index)} style={styles.row}>
-                      <Text style={styles.rowText}>{firstString(record, ['name', 'title', 'slug'])}</Text>
-                      <StatusBadge label={firstString(record, ['status'], 'Active')} status="success" />
+                      <Text style={styles.rowText}>{firstString(record, ['name', 'product_name', 'title', 'slug', 'product_code'], 'Product')}</Text>
+                      <StatusBadge label={firstString(record, ['status_label', 'status', 'entitlement'], 'Active')} status="success" />
                     </View>
                   );
                 })
@@ -344,22 +357,44 @@ export default function DashboardScreen() {
               </View>
               {showTradeScopeNotice ? <Text style={styles.scopeNote}>Trade activity is not available for this account yet.</Text> : null}
               {scopedTrades.length ? (
-                scopedTrades.slice(0, 5).map((trade, index) => (
-                  <View key={`${trade.timestamp}-${trade.symbol}-${index}`} style={styles.activityRow}>
-                    <View style={styles.activityDot} />
-                    <View style={styles.activityCopy}>
-                      <Text style={styles.activityTitle}>{trade.symbol} {trade.side}</Text>
-                      <Text style={styles.muted}>{trade.detail || trade.product}</Text>
+                visibleScopedTrades.map((trade, index) => {
+                  const showActivityValue = shouldShowActivityValue(trade);
+
+                  return (
+                    <View key={`${trade.timestamp}-${trade.symbol}-${index}`} style={styles.activityRow}>
+                      <View style={styles.activityDot} />
+                      <View style={styles.activityCopy}>
+                        <Text style={styles.activityTitle}>
+                          <Text>{trade.symbol} </Text>
+                          <Text style={activitySideStyle(trade.side, styles)}>{trade.side}</Text>
+                        </Text>
+                        <ActivityDetailText trade={trade} styles={styles} />
+                      </View>
+                      <View style={styles.activityRight}>
+                        <Text style={styles.time}>{formatDateTime(trade.timestamp)}</Text>
+                        {showActivityValue ? (
+                          <Text style={[styles.activityValue, activityValueStyle(trade.realizedPl, styles)]}>{trade.value}</Text>
+                        ) : null}
+                      </View>
                     </View>
-                    <View style={styles.activityRight}>
-                      <Text style={styles.time}>{formatDateTime(trade.timestamp)}</Text>
-                      {trade.value ? <Text style={styles.activityValue}>{trade.value}</Text> : null}
-                    </View>
-                  </View>
-                ))
+                  );
+                })
               ) : (
                 <Text style={styles.muted}>No trading activity returned.</Text>
               )}
+              {canLoadMoreTrades ? (
+                <View style={styles.loadMoreWrap}>
+                  <Pressable
+                    accessibilityLabel="Load more trading activity"
+                    accessibilityRole="button"
+                    disabled={isLoadingMoreTrades}
+                    onPress={loadMoreTrades}
+                    style={[styles.loadMoreButton, isLoadingMoreTrades && styles.loadMoreButtonDisabled]}
+                  >
+                    <Text style={styles.loadMoreText}>{isLoadingMoreTrades ? 'Loading' : 'Load More'}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </Bismel1Card>
           </ResponsiveGrid>
         </>
@@ -439,6 +474,32 @@ export default function DashboardScreen() {
       setDismissingAlertKeys((keys) => keys.filter((key) => key !== alert.key));
     }
   }
+
+  async function loadMoreTrades() {
+    if (isLoadingMoreTrades) {
+      return;
+    }
+
+    if (scopedTrades.length > visibleTradeCount) {
+      setVisibleTradeCount((count) => count + LIST_PAGE_SIZE);
+      return;
+    }
+
+    setIsLoadingMoreTrades(true);
+    try {
+      const response = await api.get<unknown>(paginatedEndpoint(endpoints.tradeActivity, LIST_PAGE_SIZE, trades.length));
+      const nextTrades = parseTradeActivity(response);
+
+      setTrades((currentTrades) => uniqueRows(currentTrades, nextTrades, tradeActivityKey));
+      setPerformanceTrades((currentTrades) => uniqueRows(currentTrades, parsePerformanceTrades(response), performanceTradeKey));
+      setHasMoreTrades(nextTrades.length >= LIST_PAGE_SIZE);
+      setVisibleTradeCount((count) => count + LIST_PAGE_SIZE);
+    } catch (loadMoreError) {
+      setError(customerSafeMessage(loadMoreError));
+    } finally {
+      setIsLoadingMoreTrades(false);
+    }
+  }
 }
 
 function SnapshotRow({
@@ -459,6 +520,37 @@ function SnapshotRow({
     </View>
   );
 }
+
+function ActivityDetailText({ trade, styles }: { trade: TradeActivityItem; styles: ReturnType<typeof makeStyles> }) {
+  const detail = trade.detail || trade.product;
+  const segments = realizedPlDetailSegments(detail);
+
+  if (!segments) {
+    return <Text style={styles.muted}>{detail}</Text>;
+  }
+
+  return (
+    <Text style={styles.muted}>
+      <Text>{segments.before}</Text>
+      <Text style={activityValueStyle(trade.realizedPl, styles)}>{segments.realizedPl}</Text>
+      <Text>{segments.after}</Text>
+    </Text>
+  );
+}
+
+const realizedPlDetailSegments = (detail: string) => {
+  const match = detail.match(/(Realized P\/L:\s*[+-]?\s*\$?[\d,]+(?:\.\d+)?)/i);
+
+  if (!match?.[0] || match.index === undefined) {
+    return null;
+  }
+
+  return {
+    before: detail.slice(0, match.index),
+    realizedPl: match[0],
+    after: detail.slice(match.index + match[0].length),
+  };
+};
 
 const parseRows = (response: unknown, keys: string[]) => {
   const record = asRecord(response);
@@ -628,6 +720,12 @@ const filterPerformanceTradesByAccount = (trades: PerformanceTradeItem[], accoun
   return trades.filter((trade) => performanceTradeMatchesAccount(trade, account));
 };
 
+const tradeActivityKey = (trade: TradeActivityItem, index: number) =>
+  [trade.timestamp, trade.symbol, trade.side, trade.value, trade.detail].filter(Boolean).join('|') || String(index);
+
+const performanceTradeKey = (trade: PerformanceTradeItem, index: number) =>
+  [trade.timestamp, trade.accountRef, trade.brokerAccountRef, trade.slotNumber, trade.realizedPl].filter(Boolean).join('|') || String(index);
+
 const tradeMatchesAccount = (trade: TradeActivityItem, account: ManagedAccount) => {
   const possibleIds = accountIdentityValues(account);
 
@@ -667,6 +765,7 @@ const parseTradeActivity = (response: unknown): TradeActivityItem[] => {
         brokerAccountRef: firstString(row, ['broker_account_ref', 'broker_account_id'], ''),
         detail: cleanTradeDetail(firstString(row, ['detail', 'message', 'description', 'status'], '')),
         product: firstString(row, ['activity_product', 'product_label', 'product_name', 'product'], ''),
+        realizedPl: typeof realizedPl === 'number' ? realizedPl : null,
         side: normalizeTradeSide(row),
         slotNumber: firstString(row, ['slot_number', 'account_slot', 'slot'], ''),
         symbol: firstString(row, ['symbol', 'ticker', 'asset_symbol'], 'Symbol'),
@@ -702,6 +801,23 @@ const parsePerformanceTrades = (response: unknown): PerformanceTradeItem[] => {
       };
     })
     .filter((trade): trade is PerformanceTradeItem => Boolean(trade));
+};
+
+const parseProductRows = (response: unknown): Record<string, unknown>[] =>
+  parseRows(response, ['products', 'active_products', 'items']);
+
+const normalizeActiveProducts = (dashboard: Record<string, unknown> | null, productRows: Record<string, unknown>[]) => {
+  const dashboardProducts = asArray(dashboard?.active_products || dashboard?.products).map(asRecord);
+
+  if (dashboardProducts.length) {
+    return dashboardProducts;
+  }
+
+  return productRows.filter((product) => {
+    const status = firstString(product, ['status', 'status_label', 'entitlement', 'state'], '').toLowerCase();
+
+    return ['active', 'enabled', 'allowed'].includes(status) || product.automation_allowed === true || product.active === true;
+  });
 };
 
 const allTimePerformanceMetrics = (trades: PerformanceTradeItem[]) => {
@@ -747,6 +863,56 @@ const normalizeTradeSide = (item: Record<string, unknown>) => {
   }
 
   return source.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const activitySideStyle = (side: string, styles: ReturnType<typeof makeStyles>) => {
+  if (isBuySide(side) || isEntrySide(side)) {
+    return styles.positiveText;
+  }
+
+  if (isSellSide(side)) {
+    return styles.negativeText;
+  }
+
+  return undefined;
+};
+
+const activityValueStyle = (realizedPl: number | null, styles: ReturnType<typeof makeStyles>) => {
+  if (realizedPl === null) {
+    return undefined;
+  }
+
+  if (realizedPl > 0) {
+    return styles.positiveText;
+  }
+
+  if (realizedPl < 0) {
+    return styles.negativeText;
+  }
+
+  return styles.neutralValueText;
+};
+
+const shouldShowActivityValue = (trade: TradeActivityItem) => {
+  if (!trade.value || trade.realizedPl === null) {
+    return false;
+  }
+
+  if ((isBuySide(trade.side) || isEntrySide(trade.side)) && trade.realizedPl === 0) {
+    return false;
+  }
+
+  return true;
+};
+
+const isBuySide = (side: string) => side.toLowerCase().includes('buy');
+
+const isSellSide = (side: string) => side.toLowerCase().includes('sell');
+
+const isEntrySide = (side: string) => {
+  const normalized = side.toLowerCase();
+
+  return normalized.includes('entry') || normalized.includes('open');
 };
 
 const cleanTradeDetail = (value: string) =>
@@ -1161,6 +1327,35 @@ const makeStyles = (colors: ThemeColors, width: number, height: number) => {
     color: colors.success,
     fontSize: 11,
     fontWeight: '900',
+  },
+  loadMoreWrap: {
+    alignItems: 'center',
+    paddingTop: 3,
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 113,
+    paddingHorizontal: 17,
+    paddingVertical: 9,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.27,
+    shadowRadius: 13,
+  },
+  loadMoreButtonDisabled: {
+    opacity: 0.57,
+  },
+  loadMoreText: {
+    color: colors.cyan,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  neutralValueText: {
+    color: colors.textMuted,
   },
   time: {
     color: colors.textMuted,
